@@ -1,5 +1,5 @@
 name: openstack-integrator
-display-name: OpenStack
+display-name: OpenStack Integrator
 summary: |
   Proxy charm to enable OpenStack integrations via Juju relations.
 description: |
