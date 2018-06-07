@@ -85,7 +85,7 @@ def cleanup():
 def _save_creds(creds_data):
     attrs = creds_data['credential']['attributes']
     kv().set('charm.openstack.full-creds', dict(
-        auth_url=attrs['endpoint'],
+        auth_url=creds_data['endpoint'],
         username=attrs['username'],
         password=attrs['password'],
         user_domain_name=attrs['user-domain-name'],
