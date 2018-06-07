@@ -1,0 +1,15 @@
+options:
+  credentials:
+    description: |
+      The base64-encoded contents of an OpenStack credentials JSON file.
+
+      The credentials must contain the following keys: endpoint, username, password,
+      user-domain-name, project-domain-name, and tenant-name.
+
+      This can be used from bundles with 'include-base64://' (see
+      https://jujucharms.com/docs/stable/charms-bundles#setting-charm-configurations-options-in-a-bundle),
+      or from the command-line with 'juju config openstack credentials="$(base64 /path/to/file)"'.
+
+      It is strongly recommended that you use 'juju trust' instead, if available.
+    type: string
+    default: ""
