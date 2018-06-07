@@ -38,7 +38,7 @@ def handle_requests():
             'granting request for {}'.format(request.unit_name))
         if not request.has_credentials:
             creds = layer.openstack.get_user_credentials()
-            request.set_credentials(creds)
+            request.set_credentials(**creds)
         layer.openstack.log('Finished request for {}', request.unit_name)
     openstack.mark_completed()
 
