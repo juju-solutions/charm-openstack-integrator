@@ -24,8 +24,6 @@ def get_creds():
 @when_all('charm.openstack.creds.set')
 @when_not('endpoint.clients.requests-pending')
 def no_requests():
-    openstack = endpoint_from_name('openstack')
-    layer.openstack.cleanup(openstack.relation_ids)
     layer.status.active('ready')
 
 
