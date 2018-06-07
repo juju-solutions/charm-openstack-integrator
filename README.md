@@ -44,15 +44,13 @@ OpenStack's PersistentDisk.
 ```sh
 #!/bin/bash
 
-# create a storage class using the `kubernetes.io/gce-pd` provisioner
+# create a storage class using the `kubernetes.io/cinder` provisioner
 kubectl create -f - <<EOY
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: gce-standard
-provisioner: kubernetes.io/gce-pd
-parameters:
-  type: pd-standard
+  name: openstack-standard
+provisioner: kubernetes.io/cinder
 EOY
 
 # create a persistent volume claim using that storage class
@@ -67,7 +65,7 @@ spec:
   resources:
     requests:
       storage: 100Mi
-  storageClassName: gce-standard
+  storageClassName: openstack-standard
 EOY
 
 # create the busybox pod with a volume using that PVC:
