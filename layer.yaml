@@ -2,7 +2,6 @@ repo: 'https://github.com/juju-solutions/charm-openstack-integrator'
 includes:
   - 'layer:basic'
   - 'layer:status'
-  - 'layer:snap'
   - 'interface:openstack-integration'
 options:
   basic:

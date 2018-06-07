@@ -30,15 +30,15 @@ def no_requests():
 @when_all('charm.openstack.creds.set',
           'endpoint.clients.requests-pending')
 def handle_requests():
-    openstack = endpoint_from_name('openstack')
-    for request in openstack.requests:
+    clients = endpoint_from_name('clients')
+    for request in clients.requests:
         layer.status.maintenance(
             'granting request for {}'.format(request.unit_name))
         if not request.has_credentials:
             creds = layer.openstack.get_user_credentials()
             request.set_credentials(**creds)
         layer.openstack.log('Finished request for {}', request.unit_name)
-    openstack.mark_completed()
+    clients.mark_completed()
 
 
 @hook('stop')
