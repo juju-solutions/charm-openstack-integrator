@@ -22,7 +22,7 @@ def get_creds():
 
 
 @when_all('charm.openstack.creds.set')
-@when_not('endpoint.openstack.requests-pending')
+@when_not('endpoint.clients.requests-pending')
 def no_requests():
     openstack = endpoint_from_name('openstack')
     layer.openstack.cleanup(openstack.relation_ids)
@@ -30,7 +30,7 @@ def no_requests():
 
 
 @when_all('charm.openstack.creds.set',
-          'endpoint.openstack.requests-pending')
+          'endpoint.clients.requests-pending')
 def handle_requests():
     openstack = endpoint_from_name('openstack')
     for request in openstack.requests:

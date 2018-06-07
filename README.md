@@ -1,8 +1,8 @@
 # Overview
 
-This charm acts as a proxy to OpenStack and provides an [interface][] to apply a
-certain set of changes via roles, profiles, and tags to the instances of
-the applications that are related to this charm.
+This charm acts as a proxy to OpenStack and provides an [interface][] to provide
+a set of credentials for a somewhat limited project user to the applications that
+are related to this charm.
 
 ## Usage
 
@@ -14,19 +14,19 @@ following bundle overlay:
 
 ```yaml
 applications:
-  openstack:
-    charm: cs:~containers/openstack
+  openstack-integrator:
+    charm: cs:~containers/openstack-integrator
     num_units: 1
 relations:
-  - ['openstack', 'kubernetes-master']
-  - ['openstack', 'kubernetes-worker']
+  - ['openstack-integrator', 'kubernetes-master']
+  - ['openstack-integrator', 'kubernetes-worker']
 ```
 
 Using Juju 2.4-beta1 or later:
 
 ```
 juju deploy cs:canonical-kubernetes --overlay ./k8s-openstack-overlay.yaml
-juju trust openstack
+juju trust openstack-integrator
 ```
 
 To deploy with earlier versions of Juju, you will need to provide the cloud
@@ -109,5 +109,5 @@ watch kubectl get svc -o wide --selector=run=load-balancer-example
 ```
 
 
-[interface]: https://github.com/juju-solutions/interface-openstack
+[interface]: https://github.com/juju-solutions/interface-openstack-integration
 [CDK]: https://jujucharms.com/canonical-kubernetes

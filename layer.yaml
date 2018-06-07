@@ -1,9 +1,9 @@
-repo: 'https://github.com/juju-solutions/charm-openstack'
+repo: 'https://github.com/juju-solutions/charm-openstack-integrator'
 includes:
   - 'layer:basic'
   - 'layer:status'
   - 'layer:snap'
-  - 'interface:openstack'
+  - 'interface:openstack-integration'
 options:
   basic:
     use_venv: true
