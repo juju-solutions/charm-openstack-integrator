@@ -44,7 +44,7 @@ def get_credentials():
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         creds = yaml.load(result.stdout.decode('utf8'))
-        creds_data = creds['credential']['attributes']
+        creds_data = creds
         _save_creds(creds_data)
         _create_project_user()
         return True
@@ -83,13 +83,14 @@ def cleanup():
 
 
 def _save_creds(creds_data):
+    attrs = creds_data['credential']['attributes']
     kv().set('charm.openstack.full-creds', dict(
-        auth_url=creds_data['endpoint'],
-        username=creds_data['username'],
-        password=creds_data['password'],
-        user_domain_name=creds_data['user-domain-name'],
-        project_domain_name=creds_data['project-domain-name'],
-        project_name=creds_data['tenant-name'],
+        auth_url=attrs['endpoint'],
+        username=attrs['username'],
+        password=attrs['password'],
+        user_domain_name=attrs['user-domain-name'],
+        project_domain_name=attrs['project-domain-name'],
+        project_name=attrs['tenant-name'],
     ))
 
 
