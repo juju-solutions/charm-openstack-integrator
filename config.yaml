@@ -1,15 +1,41 @@
 options:
   credentials:
     description: |
-      The base64-encoded contents of an OpenStack credentials JSON file.
+      The base64-encoded contents of a JSON file containing OpenStack credentials.
 
-      The credentials must contain the following keys: endpoint, username, password,
-      user-domain-name, project-domain-name, and tenant-name.
+      The credentials must contain the following keys: auth-url, username, password,
+      project-name, user-domain-name, and project-domain-name.
 
       This can be used from bundles with 'include-base64://' (see
       https://jujucharms.com/docs/stable/charms-bundles#setting-charm-configurations-options-in-a-bundle),
       or from the command-line with 'juju config openstack credentials="$(base64 /path/to/file)"'.
 
       It is strongly recommended that you use 'juju trust' instead, if available.
+    type: string
+    default: ""
+  auth-url:
+    description: |
+      The URL of the keystone API used to authenticate. On OpenStack control panels,
+      this can be found at Access and Security > API Access > Credentials.
+    type: string
+    default: ""
+  username:
+    description: Username of a valid user set in keystone.
+    type: string
+    default: ""
+  password:
+    description: Password of a valid user set in keystone.
+    type: string
+    default: ""
+  project-name:
+    description: Name of project where you want to create your resources.
+    type: string
+    default: ""
+  user-domain-name:
+    description: Name of the user domain where you want to create your resources.
+    type: string
+    default: ""
+  project-domain-name:
+    description: Name of the project domain where you want to create your resources.
     type: string
     default: ""

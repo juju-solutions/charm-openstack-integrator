@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from base64 import b64decode
@@ -29,16 +30,40 @@ def get_credentials():
 
     Prefers the config so that it can be overridden.
     """
-    no_creds_msg = 'missing credentials; set credentials config'
     config = hookenv.config()
+
+    # try credentials config
+    if config['credentials']:
+        try:
+            creds_data = b64decode(config['credentials']).decode('utf8')
+            creds_data = json.loads(creds_data)
+            log('Using "credentials" config values for credentials')
+            _save_creds(creds_data)
+            return True
+        except Exception:
+            status.blocked('invalid value for credentials config')
+            return False
+    no_creds_msg = 'missing credentials; set credentials config'
+
+    # try individual config
+    if any([config['auth-url'],
+            config['username'],
+            config['password'],
+            config['project-name'],
+            config['user-domain-name'],
+            config['project-domain-name']]):
+        log('Using individual config values for credentials')
+        _save_creds(config)
+        return True
+
     # try to use Juju's trust feature
     try:
         result = subprocess.run(['credential-get'],
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
-        creds = yaml.load(result.stdout.decode('utf8'))
-        creds_data = creds
+        creds_data = yaml.load(result.stdout.decode('utf8'))
+        log('Using credentials-get for credentials')
         _save_creds(creds_data)
         return True
     except FileNotFoundError:
@@ -47,16 +72,6 @@ def get_credentials():
         if 'permission denied' not in e.stderr.decode('utf8'):
             raise
         no_creds_msg = 'missing credentials access; grant with: juju trust'
-
-    # try credentials config
-    if config['credentials']:
-        try:
-            creds_data = b64decode(config['credentials']).decode('utf8')
-            _save_creds(creds_data)
-            return True
-        except Exception:
-            status.blocked('invalid value for credentials config')
-            return False
 
     # no creds provided
     status.blocked(no_creds_msg)
@@ -74,14 +89,19 @@ def cleanup():
 
 
 def _save_creds(creds_data):
-    attrs = creds_data['credential']['attributes']
+    if 'endpoint' in creds_data:
+        endpoint = creds_data['endpoint']
+        attrs = creds_data['credential']['attributes']
+    else:
+        attrs = creds_data
+        endpoint = attrs['auth-url']
     kv().set('charm.openstack.full-creds', dict(
-        auth_url=creds_data['endpoint'],
+        auth_url=endpoint,
         username=attrs['username'],
         password=attrs['password'],
         user_domain_name=attrs['user-domain-name'],
         project_domain_name=attrs['project-domain-name'],
-        project_name=attrs['tenant-name'],
+        project_name=attrs.get('project-name', attrs.get('tenant-name')),
     ))
 
 
