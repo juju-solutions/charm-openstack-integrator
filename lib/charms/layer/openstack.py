@@ -63,6 +63,7 @@ def get_credentials():
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         creds_data = yaml.load(result.stdout.decode('utf8'))
+
         log('Using credentials-get for credentials')
         _save_creds(creds_data)
         return True
@@ -95,6 +96,20 @@ def _save_creds(creds_data):
     else:
         attrs = creds_data
         endpoint = attrs['auth-url']
+
+    if 'ca-certificates' in creds_data:
+        # see K8s commit e3c8a0ceb66816433b095c4d734663e1b1e0e4ea
+        # K8s in-tree cloud provider code is not flexible enough
+        # to accept multiple certs that could be provided by Juju
+        # so we can grab the first one only and hope it is the
+        # right one
+        ca_certificates = creds_data.get('ca-certificates')
+        ca_cert = ca_certificates[0] if ca_certificates else None
+    elif 'endpoint-tls-ca' in creds_data:
+        ca_cert = creds_data['endpoint-tls-ca']
+    else:
+        ca_cert = None
+
     kv().set('charm.openstack.full-creds', dict(
         auth_url=endpoint,
         username=attrs['username'],
@@ -102,6 +117,7 @@ def _save_creds(creds_data):
         user_domain_name=attrs['user-domain-name'],
         project_domain_name=attrs['project-domain-name'],
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
+        endpoint_tls_ca=ca_cert,
     ))
 
 
