@@ -6,6 +6,8 @@ options:
       The credentials must contain the following keys: auth-url, username, password,
       project-name, user-domain-name, and project-domain-name.
 
+      It could also contain a base64-encoded CA certificate in endpoint-tls-ca key value.
+
       This can be used from bundles with 'include-base64://' (see
       https://jujucharms.com/docs/stable/charms-bundles#setting-charm-configurations-options-in-a-bundle),
       or from the command-line with 'juju config openstack credentials="$(base64 /path/to/file)"'.
@@ -37,5 +39,13 @@ options:
     default: ""
   project-domain-name:
     description: Name of the project domain where you want to create your resources.
+    type: string
+    default: ""
+  endpoint-tls-ca:
+    description: |
+      A CA certificate that can be used to verify the target cloud API endpoints.
+      Use 'include-base64://' in a bundle to include a certificate. Otherwise,
+      pass a base64-encoded certificate (base64 of "-----BEGIN" to "-----END")
+      as a config option in a Juju CLI invocation.
     type: string
     default: ""
