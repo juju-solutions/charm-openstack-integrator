@@ -3,6 +3,7 @@ from charms.reactive import (
     when_all,
     when_any,
     when_not,
+    is_flag_set,
     toggle_flag,
     clear_flag,
 )
@@ -27,16 +28,18 @@ def no_requests():
     layer.status.active('ready')
 
 
-@when_all('charm.openstack.creds.set',
-          'endpoint.clients.requests-pending')
+@when_all('charm.openstack.creds.set')
+@when_any('endpoint.clients.requests-pending',
+          'config.changed')
 def handle_requests():
     clients = endpoint_from_name('clients')
-    for request in clients.requests:
+    config_change = is_flag_set('config.changed')
+    requests = clients.all_requests if config_change else clients.new_requests
+    for request in requests:
         layer.status.maintenance(
             'granting request for {}'.format(request.unit_name))
-        if not request.has_credentials:
-            creds = layer.openstack.get_user_credentials()
-            request.set_credentials(**creds)
+        creds = layer.openstack.get_user_credentials()
+        request.set_credentials(**creds)
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
 
