@@ -41,6 +41,14 @@ options:
     description: Name of the project domain where you want to create your resources.
     type: string
     default: ""
+  project-domain-name:
+    description: Name of the project domain where you want to create your resources.
+    type: string
+    default: ""
+  region:
+    description: Name of the region where you want to create your resources.
+    type: string
+    default: ""
   endpoint-tls-ca:
     description: |
       A CA certificate that can be used to verify the target cloud API endpoints.
