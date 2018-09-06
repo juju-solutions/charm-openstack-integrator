@@ -1,3 +1,4 @@
+from charmhelpers.core import hookenv
 from charms.reactive import (
     hook,
     when_all,
@@ -34,12 +35,18 @@ def no_requests():
 def handle_requests():
     clients = endpoint_from_name('clients')
     config_change = is_flag_set('config.changed')
+    config = hookenv.config()
     requests = clients.all_requests if config_change else clients.new_requests
     for request in requests:
         layer.status.maintenance(
             'granting request for {}'.format(request.unit_name))
         creds = layer.openstack.get_user_credentials()
         request.set_credentials(**creds)
+        request.set_lbaas_config(config['subnet-id'],
+                                 config['floating-network-id'],
+                                 config['lb-method'],
+                                 config['manage-security-groups'],
+                                 config['node-security-group'])
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
 

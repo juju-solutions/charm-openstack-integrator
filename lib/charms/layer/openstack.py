@@ -87,7 +87,10 @@ def get_user_credentials():
 def cleanup():
     pass
 
+
 # Internal helpers
+
+
 def _save_creds(creds_data):
     if 'endpoint' in creds_data:
         endpoint = creds_data['endpoint']
@@ -111,7 +114,7 @@ def _save_creds(creds_data):
     else:
         ca_cert = None
 
-    value=dict(
+    kv().set('charm.openstack.full-creds', dict(
         auth_url=endpoint,
         region=region,
         username=attrs['username'],
@@ -119,27 +122,8 @@ def _save_creds(creds_data):
         user_domain_name=attrs['user-domain-name'],
         project_domain_name=attrs['project-domain-name'],
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
-        endpoint_tls_ca=ca_cert
-    )        
-    
-    # It only makes sense to check for LBaaS-related information
-    # if we have credentials set up.
-    
-    # Now we look for LBaaS configs
-    if config['subnet-id']:
-        # It only makes sense to advance with lbaas config if both
-        # parameters are set up
-        value['subnet_id'] = config['subnet-id']
-        if config['floating-network-id']:
-            value['fip_id'] = config['floating-network-id']
-        if config['lb-method']:
-            value['lb_method'] = config['lb-method']
-        if config['manage-security-groups']:
-            if config['manage-security-groups'] is not 'false':
-                value['manage_sec_groups'] = config['manage-security-groups']
-                value['node_sec_groups'] = config['node-security-group']
-                
-    kv().set('charm.openstack.full-creds', value)
+        endpoint_tls_ca=ca_cert,
+    ))
 
 
 def _load_creds():
