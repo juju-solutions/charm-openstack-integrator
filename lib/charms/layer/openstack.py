@@ -98,7 +98,7 @@ def _save_creds(creds_data):
     else:
         attrs = creds_data
         endpoint = attrs['auth-url']
-        endpoint = attrs['region']
+        region = attrs['region']
 
     if 'ca-certificates' in creds_data:
         # see K8s commit e3c8a0ceb66816433b095c4d734663e1b1e0e4ea
