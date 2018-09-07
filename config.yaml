@@ -41,11 +41,43 @@ options:
     description: Name of the project domain where you want to create your resources.
     type: string
     default: ""
+  region:
+    description: Name of the region where you want to create your resources.
+    type: string
+    default: ""
   endpoint-tls-ca:
     description: |
       A CA certificate that can be used to verify the target cloud API endpoints.
       Use 'include-base64://' in a bundle to include a certificate. Otherwise,
       pass a base64-encoded certificate (base64 of "-----BEGIN" to "-----END")
       as a config option in a Juju CLI invocation.
+    type: string
+    default: ""
+  subnet-id:
+    description: |
+      Subnet ID from OpenStack that will be used to setup Load Balancers. Flag
+      LoadBalancer becomes active on cloud.conf file only if this config is set.
+    type: string
+    default: ""
+  floating-network-id:
+    description: |
+      Floating IP network ID that should be used to set FIPs for load balancers.
+    type: string
+    default: ""
+  lb-method:
+    description: |
+      Specifies an algorithm load balancer, that should be one between ROUND_ROBIN,
+      LEAST_CONNECTIONS, SOURCE_IP.
+    type: string
+    default: ""
+  manage-security-groups:
+    description: |
+      Allows Load Balancer to automatically manage security groups rule. Should be one
+      value between true or false
+    type: string
+    default: "false"
+  node-security-group:
+    description: |
+      Security Group ID to be manage. Only valid if manage-security-groups set to true
     type: string
     default: ""

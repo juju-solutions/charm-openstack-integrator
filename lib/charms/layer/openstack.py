@@ -51,7 +51,8 @@ def get_credentials():
             config['password'],
             config['project-name'],
             config['user-domain-name'],
-            config['project-domain-name']]):
+            config['project-domain-name'],
+            config['region']]):
         log('Using individual config values for credentials')
         _save_creds(config)
         return True
@@ -86,16 +87,19 @@ def get_user_credentials():
 def cleanup():
     pass
 
+
 # Internal helpers
 
 
 def _save_creds(creds_data):
     if 'endpoint' in creds_data:
         endpoint = creds_data['endpoint']
+        region = creds_data['region']
         attrs = creds_data['credential']['attributes']
     else:
         attrs = creds_data
         endpoint = attrs['auth-url']
+        region = attrs['region']
 
     if 'ca-certificates' in creds_data:
         # see K8s commit e3c8a0ceb66816433b095c4d734663e1b1e0e4ea
@@ -112,6 +116,7 @@ def _save_creds(creds_data):
 
     kv().set('charm.openstack.full-creds', dict(
         auth_url=endpoint,
+        region=region,
         username=attrs['username'],
         password=attrs['password'],
         user_domain_name=attrs['user-domain-name'],
