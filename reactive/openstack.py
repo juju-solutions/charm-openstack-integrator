@@ -36,6 +36,10 @@ def handle_requests():
     clients = endpoint_from_name('clients')
     config_change = is_flag_set('config.changed')
     config = hookenv.config()
+    if config['manage-security-groups'] and not config['node-security-group']:
+        layer.status.blocked('node-security-group config required if '
+                             'manage-security-groups is True')
+        return
     requests = clients.all_requests if config_change else clients.new_requests
     for request in requests:
         layer.status.maintenance(
