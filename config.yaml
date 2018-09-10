@@ -73,10 +73,9 @@ options:
   manage-security-groups:
     description: |
       Whether or not the Load Balancer should automatically manage security groups rule.
+      In case it is set to false, Load Balancer rules will be added to project (tenant)
+      default security-group. In case it is set to true, a new security-group will be
+      created for each Load Balancer, as well as its corresponding rules.
+      It is advised to set appropriate number of security-groups and rules.
     type: boolean
     default: false
-  node-security-group:
-    description: |
-      Security Group ID to be manage. Only valid if manage-security-groups set to true
-    type: string
-    default: ""

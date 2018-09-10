@@ -1,3 +1,4 @@
+from distutils.util import strtobool
 from charmhelpers.core import hookenv
 from charms.reactive import (
     hook,
@@ -36,10 +37,16 @@ def handle_requests():
     clients = endpoint_from_name('clients')
     config_change = is_flag_set('config.changed')
     config = hookenv.config()
-    if config['manage-security-groups'] and not config['node-security-group']:
-        layer.status.blocked('node-security-group config required if '
-                             'manage-security-groups is True')
+    try:
+        manage_security_groups = strtobool(config['manage-security-groups'])
+        # use bool() to force True / False instead of 1 / 0
+        manage_security_groups = bool(manage_security_groups)
+    except ValueError:
+        layer.status.blocked('invalid value for manage-security-groups config')
         return
+    except AttributeError:
+        # in case manage_security_groups is already bool
+        manage_security_groups = config['manage-security-groups']
     requests = clients.all_requests if config_change else clients.new_requests
     for request in requests:
         layer.status.maintenance(
@@ -49,8 +56,7 @@ def handle_requests():
         request.set_lbaas_config(config['subnet-id'],
                                  config['floating-network-id'],
                                  config['lb-method'],
-                                 config['manage-security-groups'],
-                                 config['node-security-group'])
+                                 manage_security_groups)
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
 
