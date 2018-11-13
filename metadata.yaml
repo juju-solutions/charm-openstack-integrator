@@ -8,6 +8,7 @@ description: |
   such as firewalls, load balancing, block storage, object storage, etc.
 maintainers: ['Cory Johns <cory.johns@canonical.com>']
 series:
+  - bionic
   - xenial
 tags: ['openstack', 'native', 'integration']
 provides:
