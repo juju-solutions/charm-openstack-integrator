@@ -30,7 +30,8 @@ def no_requests():
     layer.status.active('ready')
 
 
-@when_all('charm.openstack.creds.set')
+@when_all('charm.openstack.creds.set',
+          'endpoints.clients.joined')
 @when_any('endpoint.clients.requests-pending',
           'config.changed')
 def handle_requests():
