@@ -31,7 +31,7 @@ def no_requests():
 
 
 @when_all('charm.openstack.creds.set',
-          'endpoints.clients.joined')
+          'endpoint.clients.joined')
 @when_any('endpoint.clients.requests-pending',
           'config.changed')
 def handle_requests():
