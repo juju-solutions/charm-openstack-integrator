@@ -58,6 +58,16 @@ def handle_requests():
                                  config['floating-network-id'],
                                  config['lb-method'],
                                  manage_security_groups)
+
+        def _or_none(val):
+            if val in (None, '', 'null'):
+                return None
+            else:
+                return val
+        request.set_block_storage_config(
+            _or_none(config.get('bs-version')),
+            _or_none(config.get('trust-device-path')),
+            _or_none(config.get('ignore-volume-az')))
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
 
