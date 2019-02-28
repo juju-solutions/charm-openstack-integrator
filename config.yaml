@@ -79,3 +79,34 @@ options:
       It is advised to set appropriate number of security-groups and rules.
     type: boolean
     default: false
+  ignore-volume-az:
+    description: |
+    type: boolean
+    default: null
+  bs-version:
+    description: |
+      Used to override automatic version detection. Valid values are v1, v2, v3
+      and auto. When auto is specified automatic detection will select the
+      highest supported version exposed by the underlying OpenStack cloud. If
+      not set, will use the upstream default.
+    type: string
+    default: null
+  trust-device-path:
+    description: |
+      In most scenarios the block device names provided by Cinder (e.g.
+      /dev/vda) can not be trusted. This boolean toggles this behavior. Setting
+      it to true results in trusting the block device names provided by Cinder.
+      The value of false results in the discovery of the device path
+      based on its serial number and /dev/disk/by-id mapping and is the
+      recommended approach.  If not set, will use the upstream default.
+    type: boolean
+    default: null
+  ignore-volume-az:
+    description: |
+      Used to influence availability zone use when attaching Cinder volumes.
+      When Nova and Cinder have different availability zones, this should be
+      set to true. This is most commonly the case where there are many Nova
+      availability zones but only one Cinder availability zone. If not set,
+      will use the upstream default.
+    type: boolean
+    default: null
