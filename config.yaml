@@ -79,10 +79,6 @@ options:
       It is advised to set appropriate number of security-groups and rules.
     type: boolean
     default: false
-  ignore-volume-az:
-    description: |
-    type: boolean
-    default: null
   bs-version:
     description: |
       Used to override automatic version detection. Valid values are v1, v2, v3
