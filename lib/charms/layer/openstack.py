@@ -42,25 +42,26 @@ def get_credentials():
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         _creds_data = yaml.load(result.stdout.decode('utf8'))
-        creds_data.update(_normalize_creds(_creds_data))
+        _merge_if_set(creds_data, _normalize_creds(_creds_data))
     except FileNotFoundError:
         pass  # juju trust not available
     except subprocess.CalledProcessError as e:
         if 'permission denied' not in e.stderr.decode('utf8'):
             raise
 
-    # try credentials config
+    # merge in combined credentials config
     if config['credentials']:
         try:
             log('Using "credentials" config values for credentials')
             _creds_data = b64decode(config['credentials']).decode('utf8')
-            creds_data.update(_normalize_creds(json.loads(_creds_data)))
+            _creds_data = json.loads(_creds_data)
+            _merge_if_set(creds_data, _normalize_creds(_creds_data))
         except Exception:
             status.blocked('invalid value for credentials config')
             return False
 
-    # try individual config
-    creds_data.update(_normalize_creds(config))
+    # merge in individual config
+    _merge_if_set(creds_data, _normalize_creds(config))
 
     if all([creds_data['auth_url'],
             creds_data['username'],
@@ -87,6 +88,12 @@ def cleanup():
 
 
 # Internal helpers
+
+
+def _merge_if_set(dst, src):
+    for k, v in src.items():
+        if v:
+            dst[k] = v
 
 
 def _normalize_creds(creds_data):
