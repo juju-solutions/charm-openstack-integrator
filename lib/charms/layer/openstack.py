@@ -32,52 +32,50 @@ def get_credentials():
     """
     config = hookenv.config()
 
+    creds_data = {}
+
+    # try to use Juju's trust feature
+    try:
+        log('Checking credentials-get for credentials')
+        result = subprocess.run(['credential-get'],
+                                check=True,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        _creds_data = yaml.load(result.stdout.decode('utf8'))
+        creds_data.update(_normalize_creds(_creds_data))
+    except FileNotFoundError:
+        pass  # juju trust not available
+    except subprocess.CalledProcessError as e:
+        if 'permission denied' not in e.stderr.decode('utf8'):
+            raise
+
     # try credentials config
     if config['credentials']:
         try:
-            creds_data = b64decode(config['credentials']).decode('utf8')
-            creds_data = json.loads(creds_data)
             log('Using "credentials" config values for credentials')
-            _save_creds(creds_data)
-            return True
+            _creds_data = b64decode(config['credentials']).decode('utf8')
+            creds_data.update(_normalize_creds(json.loads(_creds_data)))
         except Exception:
             status.blocked('invalid value for credentials config')
             return False
-    no_creds_msg = 'missing credentials; set credentials config'
 
     # try individual config
-    if any([config['auth-url'],
+    creds_data.update(_normalize_creds(config))
+
+    if all([config['auth-url'],
             config['username'],
             config['password'],
             config['project-name'],
             config['user-domain-name'],
             config['project-domain-name'],
             config['region']]):
-        log('Using individual config values for credentials')
-        _save_creds(config)
-        return True
-
-    # try to use Juju's trust feature
-    try:
-        result = subprocess.run(['credential-get'],
-                                check=True,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        creds_data = yaml.load(result.stdout.decode('utf8'))
-
-        log('Using credentials-get for credentials')
         _save_creds(creds_data)
         return True
-    except FileNotFoundError:
-        pass  # juju trust not available
-    except subprocess.CalledProcessError as e:
-        if 'permission denied' not in e.stderr.decode('utf8'):
-            raise
-        no_creds_msg = 'missing credentials access; grant with: juju trust'
-
-    # no creds provided
-    status.blocked(no_creds_msg)
-    return False
+    else:
+        # no creds provided
+        status.blocked('missing credentials; '
+                       'grant with `juju trust` or set via config')
+        return False
 
 
 def get_user_credentials():
@@ -91,7 +89,7 @@ def cleanup():
 # Internal helpers
 
 
-def _save_creds(creds_data):
+def _normalize_creds(creds_data):
     if 'endpoint' in creds_data:
         endpoint = creds_data['endpoint']
         region = creds_data['region']
@@ -114,7 +112,7 @@ def _save_creds(creds_data):
     else:
         ca_cert = None
 
-    kv().set('charm.openstack.full-creds', dict(
+    return dict(
         auth_url=endpoint,
         region=region,
         username=attrs['username'],
@@ -123,7 +121,11 @@ def _save_creds(creds_data):
         project_domain_name=attrs['project-domain-name'],
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
         endpoint_tls_ca=ca_cert,
-    ))
+    )
+
+
+def _save_creds(creds_data):
+    kv().set('charm.openstack.full-creds', creds_data)
 
 
 def _load_creds():
