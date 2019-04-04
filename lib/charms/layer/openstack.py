@@ -62,13 +62,13 @@ def get_credentials():
     # try individual config
     creds_data.update(_normalize_creds(config))
 
-    if all([config['auth-url'],
-            config['username'],
-            config['password'],
-            config['project-name'],
-            config['user-domain-name'],
-            config['project-domain-name'],
-            config['region']]):
+    if all([creds_data['auth_url'],
+            creds_data['username'],
+            creds_data['password'],
+            creds_data['project_name'],
+            creds_data['user_domain_name'],
+            creds_data['project_domain_name'],
+            creds_data['region']]):
         _save_creds(creds_data)
         return True
     else:
