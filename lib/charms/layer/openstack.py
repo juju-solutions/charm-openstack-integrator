@@ -32,7 +32,20 @@ def get_credentials():
     """
     config = hookenv.config()
 
-    creds_data = {}
+    required_fields = [
+        'auth_url',
+        'region',
+        'username',
+        'password',
+        'user_domain_name',
+        'project_domain_name',
+        'project_name',
+    ]
+    optional_fields = [
+        'endpoint_tls_ca',
+    ]
+    # pre-populate with empty values to avoid key and arg errors
+    creds_data = {field: '' for field in required_fields + optional_fields}
 
     # try to use Juju's trust feature
     try:
@@ -63,13 +76,7 @@ def get_credentials():
     # merge in individual config
     _merge_if_set(creds_data, _normalize_creds(config))
 
-    if all([creds_data['auth_url'],
-            creds_data['username'],
-            creds_data['password'],
-            creds_data['project_name'],
-            creds_data['user_domain_name'],
-            creds_data['project_domain_name'],
-            creds_data['region']]):
+    if all(v for k, v in creds_data.items() if k in required_fields):
         _save_creds(creds_data)
         return True
     else:
