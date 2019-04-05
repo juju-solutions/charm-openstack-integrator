@@ -1,7 +1,7 @@
 import json
 import os
 import subprocess
-from base64 import b64decode
+from base64 import b64decode, b64encode
 
 import yaml
 
@@ -113,6 +113,7 @@ def _normalize_creds(creds_data):
         endpoint = attrs['auth-url']
         region = attrs['region']
 
+    ca_cert = None
     # seems like this might have changed at some point;
     # newer controllers return the latter
     trust_ca_keys = {'ca-certificates', 'cacertificates'}
@@ -124,11 +125,19 @@ def _normalize_creds(creds_data):
         # right one
         trust_ca_key = (trust_ca_keys & creds_data.keys()).pop()
         ca_certificates = creds_data[trust_ca_key]
-        ca_cert = ca_certificates[0] if ca_certificates else None
+        if ca_certificates:
+            ca_cert = ca_certificates[0]
     elif 'endpoint-tls-ca' in creds_data:
         ca_cert = creds_data['endpoint-tls-ca']
-    else:
-        ca_cert = None
+
+    # interface expects it b64 encoded; that seems unnecessary,
+    # but we should ensure that it follows the interface docs
+    if ca_cert:
+        try:
+            ca_cert = b64decode(ca_cert)
+        except Exception:
+            pass  # might not be encoded
+        ca_cert = b64encode(ca_cert)  # ensure is encoded
 
     return dict(
         auth_url=endpoint,
