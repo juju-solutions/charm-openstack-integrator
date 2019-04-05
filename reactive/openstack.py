@@ -14,7 +14,15 @@ from charms.reactive.relations import endpoint_from_name
 from charms import layer
 
 
-@when_any('config.changed.credentials')
+@when_any('config.changed.credentials',
+          'config.changed.auth-url',
+          'config.changed.username',
+          'config.changed.password',
+          'config.changed.project-name',
+          'config.changed.user-domain-name',
+          'config.changed.project-domain-name',
+          'config.changed.region',
+          'config.changed.endpoint-tls-ca')
 def update_creds():
     clear_flag('charm.openstack.creds.set')
 

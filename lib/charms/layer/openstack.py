@@ -113,13 +113,17 @@ def _normalize_creds(creds_data):
         endpoint = attrs['auth-url']
         region = attrs['region']
 
-    if 'ca-certificates' in creds_data:
+    # seems like this might have changed at some point;
+    # newer controllers return the latter
+    trust_ca_keys = {'ca-certificates', 'cacertificates'}
+    if trust_ca_keys & creds_data.keys():
         # see K8s commit e3c8a0ceb66816433b095c4d734663e1b1e0e4ea
         # K8s in-tree cloud provider code is not flexible enough
         # to accept multiple certs that could be provided by Juju
         # so we can grab the first one only and hope it is the
         # right one
-        ca_certificates = creds_data.get('ca-certificates')
+        trust_ca_key = (trust_ca_keys & creds_data.keys())[0]
+        ca_certificates = creds_data[trust_ca_key]
         ca_cert = ca_certificates[0] if ca_certificates else None
     elif 'endpoint-tls-ca' in creds_data:
         ca_cert = creds_data['endpoint-tls-ca']
