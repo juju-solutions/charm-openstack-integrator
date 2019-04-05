@@ -122,7 +122,7 @@ def _normalize_creds(creds_data):
         # to accept multiple certs that could be provided by Juju
         # so we can grab the first one only and hope it is the
         # right one
-        trust_ca_key = (trust_ca_keys & creds_data.keys())[0]
+        trust_ca_key = (trust_ca_keys & creds_data.keys()).pop()
         ca_certificates = creds_data[trust_ca_key]
         ca_cert = ca_certificates[0] if ca_certificates else None
     elif 'endpoint-tls-ca' in creds_data:
