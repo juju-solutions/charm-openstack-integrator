@@ -76,7 +76,7 @@ def get_credentials():
     # merge in individual config
     _merge_if_set(creds_data, _normalize_creds(config))
 
-    if all(v for k, v in creds_data.items() if k in required_fields):
+    if all(creds_data[k] for k in required_fields):
         _save_creds(creds_data)
         return True
     else:
