@@ -54,7 +54,7 @@ def get_credentials():
                                 check=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
-        _creds_data = yaml.load(result.stdout.decode('utf8'))
+        _creds_data = yaml.safe_load(result.stdout.decode('utf8'))
         _merge_if_set(creds_data, _normalize_creds(_creds_data))
     except FileNotFoundError:
         pass  # juju trust not available
@@ -116,15 +116,14 @@ def _normalize_creds(creds_data):
     ca_cert = None
     # seems like this might have changed at some point;
     # newer controllers return the latter
-    trust_ca_keys = {'ca-certificates', 'cacertificates'}
-    if trust_ca_keys & creds_data.keys():
+    trust_ca_key = {'ca-certificates', 'cacertificates'} & creds_data.keys()
+    if trust_ca_key:
         # see K8s commit e3c8a0ceb66816433b095c4d734663e1b1e0e4ea
         # K8s in-tree cloud provider code is not flexible enough
         # to accept multiple certs that could be provided by Juju
         # so we can grab the first one only and hope it is the
         # right one
-        trust_ca_key = (trust_ca_keys & creds_data.keys()).pop()
-        ca_certificates = creds_data[trust_ca_key]
+        ca_certificates = creds_data[trust_ca_key.pop()]
         if ca_certificates:
             ca_cert = ca_certificates[0]
     elif 'endpoint-tls-ca' in creds_data:
