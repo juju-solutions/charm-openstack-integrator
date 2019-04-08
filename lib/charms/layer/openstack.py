@@ -133,11 +133,13 @@ def _normalize_creds(creds_data):
     # interface expects it b64 encoded; that seems unnecessary,
     # but we should ensure that it follows the interface docs
     if ca_cert:
+        ca_cert = ca_cert.decode('utf8')  # b64 deals with bytes
         try:
             ca_cert = b64decode(ca_cert)
         except Exception:
             pass  # might not be encoded
         ca_cert = b64encode(ca_cert)  # ensure is encoded
+        ca_cert = ca_cert.encode('utf8')  # relations deal with strings
 
     return dict(
         auth_url=endpoint,
