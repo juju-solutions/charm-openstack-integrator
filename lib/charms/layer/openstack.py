@@ -119,15 +119,8 @@ def detect_octavia():
         ),
     )
     try:
-        # This will attempt to create the proxy to the load-balancer service.
-        # Doing it this way, rather than using list_services(), handles older
-        # Neutron / Octavia implementations that have an inaccessible discovery
-        # document.
-        client.load_balancer
-    except openstack.exceptions.EndpointNotFound:
-        return False  # the Octavia endpoint was not found
-    else:
-        return True  # found the Octavia endpoint
+        services = {s['name'] for s in client.service_catalog}
+        return 'octavia' in services
     finally:
         try:
             client.close()  # try to be a good citizen
