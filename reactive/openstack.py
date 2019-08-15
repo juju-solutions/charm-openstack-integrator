@@ -46,6 +46,7 @@ def handle_requests():
     clients = endpoint_from_name('clients')
     config_change = is_flag_set('config.changed')
     config = hookenv.config()
+    has_octavia = layer.openstack.detect_octavia()
     try:
         manage_security_groups = strtobool(config['manage-security-groups'])
         # use bool() to force True / False instead of 1 / 0
@@ -65,7 +66,8 @@ def handle_requests():
         request.set_lbaas_config(config['subnet-id'],
                                  config['floating-network-id'],
                                  config['lb-method'],
-                                 manage_security_groups)
+                                 manage_security_groups,
+                                 has_octavia)
 
         def _or_none(val):
             if val in (None, '', 'null'):
@@ -78,6 +80,15 @@ def handle_requests():
             _or_none(config.get('ignore-volume-az')))
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
+
+
+@when_all('charm.openstack.creds.set',
+          'endpoint.loadbalancer.joined')
+def create_or_update_loadbalancers():
+    clients = endpoint_from_name('loadbalancer')
+    for relation in clients.relations:
+        address, port = layer.openstack.create_or_update_loadbalancer(relation)
+        clients.set_address_port(address, port, relation)
 
 
 @hook('stop')

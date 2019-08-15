@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 from base64 import b64decode, b64encode
+from pathlib import Path
 
 import yaml
 
@@ -10,10 +11,14 @@ from charmhelpers.core.unitdata import kv
 
 from charms.layer import status
 
+import openstack
+
 
 # When debugging hooks, for some reason HOME is set to /home/ubuntu, whereas
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
+
+CA_CERT_FILE = Path('/etc/openstack-integrator/ca.crt')
 
 
 def log(msg, *args):
@@ -88,6 +93,46 @@ def get_credentials():
 
 def get_user_credentials():
     return _load_creds()
+
+
+def detect_octavia():
+    """
+    Determine whether the underlying OpenStack is using Octavia or not.
+
+    Returns True if Octavia is found, and False otherwise.
+    """
+    creds = get_user_credentials()
+    if creds['endpoint-tls-ca'] and not CA_CERT_FILE.exists():
+        ca_cert = b64decode(creds['endpoint-tls-ca'].encode('utf8'))
+        CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CA_CERT_FILE.write_text(ca_cert + '\n')
+    client = openstack.connection.Connection(
+        region=creds['region'],
+        cacert=CA_CERT_FILE if CA_CERT_FILE.exists() else None,
+        auth=dict(
+            auth_url=creds['auth_url'],
+            username=creds['username'],
+            password=creds['password'],
+            project_name=creds['project_name'],
+            project_domain_name=creds['project_domain_name'],
+            user_domain_name=creds['user_domain_name'],
+        ),
+    )
+    try:
+        # This will attempt to create the proxy to the load-balancer service.
+        # Doing it this way, rather than using list_services(), handles older
+        # Neutron / Octavia implementations that have an inaccessible discovery
+        # document.
+        client.load_balancer
+    except openstack.exceptions.EndpointNotFound:
+        return False  # the Octavia endpoint was not found
+    else:
+        return True  # found the Octavia endpoint
+    finally:
+        try:
+            client.close()  # try to be a good citizen
+        except AttributeError:
+            pass  # but allow for bug in openstacksdk
 
 
 def cleanup():
