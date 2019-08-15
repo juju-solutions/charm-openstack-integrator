@@ -1,3 +1,4 @@
+import subprocess
 from distutils.util import strtobool
 from charmhelpers.core import hookenv
 from charms.reactive import (
@@ -12,6 +13,20 @@ from charms.reactive import (
 from charms.reactive.relations import endpoint_from_name
 
 from charms import layer
+
+
+@when_all('snap.installed.openstackclients')
+def set_app_ver():
+    try:
+        result = subprocess.run(['snap', 'info', 'openstackclients'],
+                                stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError:
+        pass
+    else:
+        stdout = result.stdout.decode('utf8').splitlines()
+        version = [line.split()[1] for line in stdout if 'installed' in line]
+        if version:
+            hookenv.application_version_set(version[0])
 
 
 @when_any('config.changed.credentials',
@@ -32,13 +47,15 @@ def get_creds():
     toggle_flag('charm.openstack.creds.set', layer.openstack.get_credentials())
 
 
-@when_all('charm.openstack.creds.set')
+@when_all('snap.installed.openstackclients',
+          'charm.openstack.creds.set')
 @when_not('endpoint.clients.requests-pending')
 def no_requests():
     layer.status.active('ready')
 
 
-@when_all('charm.openstack.creds.set',
+@when_all('snap.installed.openstackclients',
+          'charm.openstack.creds.set',
           'endpoint.clients.joined')
 @when_any('endpoint.clients.requests-pending',
           'config.changed')
