@@ -186,6 +186,7 @@ def _load_creds():
 def _run_with_creds(*args):
     creds = _load_creds()
     env = {
+        'PATH': os.pathsep.join(['/snap/bin', os.environ['PATH']]),
         'OS_AUTH_URL': creds['auth_url'],
         'OS_USERNAME': creds['username'],
         'OS_PASSWORD': creds['password'],
@@ -196,8 +197,8 @@ def _run_with_creds(*args):
         'OS_AUTH_VERSION': creds['version'],
         'OS_IDENTITY_API_VERSION': creds['version'],
     }
-    if creds['endpoint-tls-ca'] and not CA_CERT_FILE.exists():
-        ca_cert = b64decode(creds['endpoint-tls-ca'].encode('utf8'))
+    if creds['endpoint_tls_ca'] and not CA_CERT_FILE.exists():
+        ca_cert = b64decode(creds['endpoint_tls_ca'].encode('utf8'))
         CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)
         CA_CERT_FILE.write_text(ca_cert + '\n')
     if CA_CERT_FILE.exists():
