@@ -42,6 +42,13 @@ def update_creds():
     clear_flag('charm.openstack.creds.set')
 
 
+@hook('upgrade-charm')
+def upgrade_charm():
+    # when the charm is upgraded, recheck the creds in case anything
+    # has changed or we want to handle any of the fields differently
+    clear_flag('charm.openstack.creds.set')
+
+
 @when_not('charm.openstack.creds.set')
 def get_creds():
     toggle_flag('charm.openstack.creds.set', layer.openstack.get_credentials())
