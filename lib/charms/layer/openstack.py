@@ -194,9 +194,14 @@ def _run_with_creds(*args):
         'OS_USER_DOMAIN_NAME': creds['user_domain_name'],
         'OS_PROJECT_NAME': creds['project_name'],
         'OS_PROJECT_DOMAIN_NAME': creds['project_domain_name'],
-        'OS_AUTH_VERSION': creds['version'],
-        'OS_IDENTITY_API_VERSION': creds['version'],
     }
+    if creds.get('version'):
+        # version should always be added by _normalize_creds, but it might
+        # be empty in which case we shouldn't set the env vars
+        env.update({
+            'OS_IDENTITY_API_VERSION': creds['version'],
+            'OS_AUTH_VERSION': creds['version'],
+        })
     if creds['endpoint_tls_ca'] and not CA_CERT_FILE.exists():
         ca_cert = b64decode(creds['endpoint_tls_ca'].encode('utf8'))
         CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)

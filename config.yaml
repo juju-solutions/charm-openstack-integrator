@@ -81,10 +81,10 @@ options:
     default: false
   bs-version:
     description: |
-      Used to override automatic version detection. Valid values are v1, v2, v3
-      and auto. When auto is specified automatic detection will select the
-      highest supported version exposed by the underlying OpenStack cloud. If
-      not set, will use the upstream default.
+      Used to override automatic version detection for block storage usage.
+      Valid values are v1, v2, v3 and auto. When auto is specified automatic
+      detection will select the highest supported version exposed by the
+      underlying OpenStack cloud. If not set, will use the upstream default.
     type: string
     default: null
   trust-device-path:
