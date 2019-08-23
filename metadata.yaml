@@ -14,6 +14,8 @@ tags: ['openstack', 'native', 'integration']
 provides:
   clients:
     interface: openstack-integration
+  loadbalancer:
+    interface: public-address
 resources:
   openstackclients:
     type: file

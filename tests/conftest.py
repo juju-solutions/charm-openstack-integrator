@@ -1,3 +1,4 @@
+import os
 import sys
 from unittest.mock import MagicMock
 
@@ -7,3 +8,5 @@ sys.modules['charmhelpers'] = ch
 sys.modules['charmhelpers.core'] = ch.core
 sys.modules['charmhelpers.core.unitdata'] = ch.core.unitdata
 sys.modules['charms.layer.status'] = MagicMock()
+
+os.environ['JUJU_MODEL_UUID'] = 'test-1234'

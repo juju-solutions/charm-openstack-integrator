@@ -4,6 +4,8 @@ includes:
   - 'layer:status'
   - 'layer:snap'
   - 'interface:openstack-integration'
+  - 'interface:public-address'
+  - 'interface:http'
 options:
   basic:
     use_venv: true
