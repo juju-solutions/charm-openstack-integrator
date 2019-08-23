@@ -1,3 +1,4 @@
+import subprocess
 from distutils.util import strtobool
 from charmhelpers.core import hookenv
 from charms.reactive import (
@@ -12,6 +13,20 @@ from charms.reactive import (
 from charms.reactive.relations import endpoint_from_name
 
 from charms import layer
+
+
+@when_all('snap.installed.openstackclients')
+def set_app_ver():
+    try:
+        result = subprocess.run(['snap', 'info', 'openstackclients'],
+                                stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError:
+        pass
+    else:
+        stdout = result.stdout.decode('utf8').splitlines()
+        version = [line.split()[1] for line in stdout if 'installed' in line]
+        if version:
+            hookenv.application_version_set(version[0])
 
 
 @when_any('config.changed.credentials',
@@ -32,13 +47,15 @@ def get_creds():
     toggle_flag('charm.openstack.creds.set', layer.openstack.get_credentials())
 
 
-@when_all('charm.openstack.creds.set')
+@when_all('snap.installed.openstackclients',
+          'charm.openstack.creds.set')
 @when_not('endpoint.clients.requests-pending')
 def no_requests():
     layer.status.active('ready')
 
 
-@when_all('charm.openstack.creds.set',
+@when_all('snap.installed.openstackclients',
+          'charm.openstack.creds.set',
           'endpoint.clients.joined')
 @when_any('endpoint.clients.requests-pending',
           'config.changed')
@@ -46,6 +63,7 @@ def handle_requests():
     clients = endpoint_from_name('clients')
     config_change = is_flag_set('config.changed')
     config = hookenv.config()
+    has_octavia = layer.openstack.detect_octavia()
     try:
         manage_security_groups = strtobool(config['manage-security-groups'])
         # use bool() to force True / False instead of 1 / 0
@@ -65,7 +83,8 @@ def handle_requests():
         request.set_lbaas_config(config['subnet-id'],
                                  config['floating-network-id'],
                                  config['lb-method'],
-                                 manage_security_groups)
+                                 manage_security_groups,
+                                 has_octavia)
 
         def _or_none(val):
             if val in (None, '', 'null'):
@@ -78,6 +97,15 @@ def handle_requests():
             _or_none(config.get('ignore-volume-az')))
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
+
+
+@when_all('charm.openstack.creds.set',
+          'endpoint.loadbalancer.joined')
+def create_or_update_loadbalancers():
+    clients = endpoint_from_name('loadbalancer')
+    for relation in clients.relations:
+        address, port = layer.openstack.create_or_update_loadbalancer(relation)
+        clients.set_address_port(address, port, relation)
 
 
 @hook('stop')

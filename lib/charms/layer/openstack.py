@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 from base64 import b64decode, b64encode
+from pathlib import Path
 
 import yaml
 
@@ -14,6 +15,8 @@ from charms.layer import status
 # When debugging hooks, for some reason HOME is set to /home/ubuntu, whereas
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
+
+CA_CERT_FILE = Path('/etc/openstack-integrator/ca.crt')
 
 
 def log(msg, *args):
@@ -47,34 +50,39 @@ def get_credentials():
     # pre-populate with empty values to avoid key and arg errors
     creds_data = {field: '' for field in required_fields + optional_fields}
 
-    # try to use Juju's trust feature
     try:
-        log('Checking credentials-get for credentials')
-        result = subprocess.run(['credential-get'],
-                                check=True,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        _creds_data = yaml.safe_load(result.stdout.decode('utf8'))
-        _merge_if_set(creds_data, _normalize_creds(_creds_data))
-    except FileNotFoundError:
-        pass  # juju trust not available
-    except subprocess.CalledProcessError as e:
-        if 'permission denied' not in e.stderr.decode('utf8'):
-            raise
-
-    # merge in combined credentials config
-    if config['credentials']:
+        # try to use Juju's trust feature
         try:
-            log('Using "credentials" config values for credentials')
-            _creds_data = b64decode(config['credentials']).decode('utf8')
-            _creds_data = json.loads(_creds_data)
+            log('Checking credentials-get for credentials')
+            result = subprocess.run(['credential-get'],
+                                    check=True,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            _creds_data = yaml.safe_load(result.stdout.decode('utf8'))
             _merge_if_set(creds_data, _normalize_creds(_creds_data))
-        except Exception:
-            status.blocked('invalid value for credentials config')
-            return False
+        except FileNotFoundError:
+            pass  # juju trust not available
+        except subprocess.CalledProcessError as e:
+            if 'permission denied' not in e.stderr.decode('utf8'):
+                raise
 
-    # merge in individual config
-    _merge_if_set(creds_data, _normalize_creds(config))
+        # merge in combined credentials config
+        if config['credentials']:
+            try:
+                log('Using "credentials" config values for credentials')
+                _creds_data = b64decode(config['credentials']).decode('utf8')
+                _creds_data = json.loads(_creds_data)
+                _merge_if_set(creds_data, _normalize_creds(_creds_data))
+            except Exception:
+                status.blocked('invalid value for credentials config')
+                return False
+
+        # merge in individual config
+        _merge_if_set(creds_data, _normalize_creds(config))
+    except ValueError as e:
+        if str(e).startswith('unsupported auth-type'):
+            status.blocked(str(e))
+            return False
 
     if all(creds_data[k] for k in required_fields):
         _save_creds(creds_data)
@@ -88,6 +96,16 @@ def get_credentials():
 
 def get_user_credentials():
     return _load_creds()
+
+
+def detect_octavia():
+    """
+    Determine whether the underlying OpenStack is using Octavia or not.
+
+    Returns True if Octavia is found, and False otherwise.
+    """
+    catalog = {s['Name'] for s in _openstack('catalog', 'list')}
+    return 'octavia' in catalog
 
 
 def cleanup():
@@ -112,6 +130,10 @@ def _normalize_creds(creds_data):
         attrs = creds_data
         endpoint = attrs['auth-url']
         region = attrs['region']
+
+    if attrs.get('auth-type') not in ('userpass', None):
+        raise ValueError('unsupported auth-type in credentials: '
+                         '{}'.format(attrs.get('auth-type')))
 
     ca_cert = None
     # seems like this might have changed at some point;
@@ -149,6 +171,7 @@ def _normalize_creds(creds_data):
         project_domain_name=attrs['project-domain-name'],
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
         endpoint_tls_ca=ca_cert,
+        version=attrs.get('version'),
     )
 
 
@@ -158,3 +181,37 @@ def _save_creds(creds_data):
 
 def _load_creds():
     return kv().get('charm.openstack.full-creds')
+
+
+def _run_with_creds(*args):
+    creds = _load_creds()
+    env = {
+        'PATH': os.pathsep.join(['/snap/bin', os.environ['PATH']]),
+        'OS_AUTH_URL': creds['auth_url'],
+        'OS_USERNAME': creds['username'],
+        'OS_PASSWORD': creds['password'],
+        'OS_REGION_NAME': creds['region'],
+        'OS_USER_DOMAIN_NAME': creds['user_domain_name'],
+        'OS_PROJECT_NAME': creds['project_name'],
+        'OS_PROJECT_DOMAIN_NAME': creds['project_domain_name'],
+        'OS_AUTH_VERSION': creds['version'],
+        'OS_IDENTITY_API_VERSION': creds['version'],
+    }
+    if creds['endpoint_tls_ca'] and not CA_CERT_FILE.exists():
+        ca_cert = b64decode(creds['endpoint_tls_ca'].encode('utf8'))
+        CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CA_CERT_FILE.write_text(ca_cert + '\n')
+    if CA_CERT_FILE.exists():
+        env['OS_CACERT'] = str(CA_CERT_FILE)
+
+    result = subprocess.run(args,
+                            env=env,
+                            check=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    return result.stdout.decode('utf8')
+
+
+def _openstack(*args):
+    output = _run_with_creds('openstack', *args, '--format=yaml')
+    return yaml.safe_load(output)

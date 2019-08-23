@@ -14,3 +14,8 @@ tags: ['openstack', 'native', 'integration']
 provides:
   clients:
     interface: openstack-integration
+resources:
+  openstackclients:
+    type: file
+    filename: openstackclients.snap
+    description: Resource to side-load openstackclients snap in network-restricted deployments.
