@@ -1,8 +1,11 @@
 import json
+import re
 import os
 import subprocess
 from base64 import b64decode, b64encode
 from pathlib import Path
+from traceback import format_exc
+from urllib.request import urlopen
 
 import yaml
 
@@ -104,7 +107,11 @@ def detect_octavia():
 
     Returns True if Octavia is found, and False otherwise.
     """
-    catalog = {s['Name'] for s in _openstack('catalog', 'list')}
+    try:
+        catalog = {s['Name'] for s in _openstack('catalog', 'list')}
+    except Exception:
+        log_err('Error while trying to detect Octavia', format_exc())
+        return None
     return 'octavia' in catalog
 
 
@@ -162,6 +169,19 @@ def _normalize_creds(creds_data):
         ca_cert = b64encode(ca_cert)  # ensure is encoded
         ca_cert = ca_cert.decode('utf8')  # relations deal with strings
 
+    url_ver = re.search(r'/v?(\d+(.\d+)?)$', endpoint)
+    if attrs.get('version'):
+        version = attrs['version']
+    elif url_ver:
+        version = url_ver.group(1)
+    else:
+        with urlopen(endpoint) as fp:
+            try:
+                info = json.loads(fp.read(600).decode('utf8'))
+                version = info['version']['id'].split('.')[0]
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                log_err('Failed to determine API version: {}', e)
+                version = None
     return dict(
         auth_url=endpoint,
         region=region,
@@ -171,7 +191,7 @@ def _normalize_creds(creds_data):
         project_domain_name=attrs['project-domain-name'],
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
         endpoint_tls_ca=ca_cert,
-        version=attrs.get('version'),
+        version=version,
     )
 
 
@@ -194,14 +214,8 @@ def _run_with_creds(*args):
         'OS_USER_DOMAIN_NAME': creds['user_domain_name'],
         'OS_PROJECT_NAME': creds['project_name'],
         'OS_PROJECT_DOMAIN_NAME': creds['project_domain_name'],
+        'OS_IDENTITY_API_VERSION': creds['version'],
     }
-    if creds.get('version'):
-        # version should always be added by _normalize_creds, but it might
-        # be empty in which case we shouldn't set the env vars
-        env.update({
-            'OS_IDENTITY_API_VERSION': creds['version'],
-            'OS_AUTH_VERSION': creds['version'],
-        })
     if creds['endpoint_tls_ca'] and not CA_CERT_FILE.exists():
         ca_cert = b64decode(creds['endpoint_tls_ca'].encode('utf8'))
         CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -212,8 +226,7 @@ def _run_with_creds(*args):
     result = subprocess.run(args,
                             env=env,
                             check=True,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+                            stdout=subprocess.PIPE)
     return result.stdout.decode('utf8')
 
 
