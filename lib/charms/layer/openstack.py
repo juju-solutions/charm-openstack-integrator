@@ -209,7 +209,7 @@ def _run_with_creds(*args):
     if creds['endpoint_tls_ca'] and not CA_CERT_FILE.exists():
         ca_cert = b64decode(creds['endpoint_tls_ca'].encode('utf8'))
         CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CA_CERT_FILE.write_text(ca_cert + '\n')
+        CA_CERT_FILE.write_text(ca_cert.decode('utf8') + '\n')
     if CA_CERT_FILE.exists():
         env['OS_CACERT'] = str(CA_CERT_FILE)
 
