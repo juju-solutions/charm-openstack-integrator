@@ -11,3 +11,9 @@ options:
     openstackclients:
       channel: stable
       classic: true
+exclude:
+  - .tox
+  - __pycache__
+  - tests
+  - conftest.py
+  - tox.ini
