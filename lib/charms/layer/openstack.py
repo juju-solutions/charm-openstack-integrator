@@ -206,7 +206,7 @@ def _run_with_creds(*args):
         # version should always be added by _normalize_creds, but it might
         # be empty in which case we shouldn't set the env vars
         env['OS_IDENTITY_API_VERSION'] = creds['version']
-    if creds['endpoint_tls_ca'] and not CA_CERT_FILE.exists():
+    if creds['endpoint_tls_ca']:
         ca_cert = b64decode(creds['endpoint_tls_ca'].encode('utf8'))
         CA_CERT_FILE.parent.mkdir(parents=True, exist_ok=True)
         CA_CERT_FILE.write_text(ca_cert.decode('utf8') + '\n')
