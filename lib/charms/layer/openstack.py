@@ -121,8 +121,6 @@ def detect_octavia():
 
 
 def manage_loadbalancer(app_name, members):
-    if not members:
-        return
     log('Managing load balancer for {}', app_name)
     subnet = config['lb-subnet'] or _default_subnet(members)
     fip_net = config['lb-floating-network']

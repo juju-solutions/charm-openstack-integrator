@@ -115,6 +115,8 @@ def create_or_update_loadbalancers():
     lb_clients = endpoint_from_name('loadbalancer')
     try:
         for request in lb_clients.requests:
+            if not request.members:
+                continue
             lb = layer.openstack.manage_loadbalancer(request.application_name,
                                                      request.members)
             request.set_address_port(lb.fip or lb.address, lb.port)
