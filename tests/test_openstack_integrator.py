@@ -4,6 +4,7 @@ import tempfile
 from base64 import b64encode
 from pathlib import Path
 from unittest import mock
+from subprocess import CalledProcessError
 
 from charms.layer import openstack
 
@@ -18,8 +19,17 @@ def patch_fixture(patch_target):
 
 urlopen = patch_fixture('charms.layer.openstack.urlopen')
 log_err = patch_fixture('charms.layer.openstack.log_err')
-load_creds = patch_fixture('charms.layer.openstack._load_creds')
+_load_creds = patch_fixture('charms.layer.openstack._load_creds')
+detect_octavia = patch_fixture('charms.layer.openstack.detect_octavia')
 run = patch_fixture('subprocess.run')
+_run_with_creds = patch_fixture('charms.layer.openstack._run_with_creds')
+_openstack = patch_fixture('charms.layer.openstack._openstack')
+_neutron = patch_fixture('charms.layer.openstack._neutron')
+LoadBalancerClient = patch_fixture('charms.layer.openstack.LoadBalancerClient')
+OctaviaLBClient = patch_fixture('charms.layer.openstack.OctaviaLBClient')
+NeutronLBClient = patch_fixture('charms.layer.openstack.NeutronLBClient')
+_default_subnet = patch_fixture('charms.layer.openstack._default_subnet')
+sleep = patch_fixture('time.sleep')
 
 
 @pytest.fixture
@@ -28,6 +38,25 @@ def cert_file():
         cert_file = Path(tmpdir) / 'test.crt'
         with mock.patch('charms.layer.openstack.CA_CERT_FILE', cert_file):
             yield cert_file
+
+
+@pytest.fixture
+def config():
+    with mock.patch('charms.layer.openstack.config', {}) as config:
+        yield config
+
+
+@pytest.fixture
+def impl():
+    with mock.patch.object(openstack.LoadBalancer, '_get_impl') as _get_impl:
+        _get_impl.return_value = mock.Mock(spec=openstack.BaseLBImpl)
+        yield _get_impl()
+
+
+@pytest.fixture
+def kv():
+    with mock.patch.object(openstack, 'kv') as kv:
+        yield kv()
 
 
 def test_determine_version(urlopen, log_err):
@@ -66,8 +95,8 @@ def _b64(s):
     return b64encode(s.encode('utf8')).decode('utf8')
 
 
-def test_run_with_creds(cert_file, load_creds, run):
-    load_creds.return_value = {
+def test_run_with_creds(cert_file, _load_creds, run):
+    _load_creds.return_value = {
         'auth_url': 'auth_url',
         'region': 'region',
         'username': 'username',
@@ -95,20 +124,242 @@ def test_run_with_creds(cert_file, load_creds, run):
         'OS_CACERT': str(cert_file),
     }, check=True, stdout=mock.ANY)
 
-    load_creds.return_value['endpoint_tls_ca'] = _b64('foo')
+    _load_creds.return_value['endpoint_tls_ca'] = _b64('foo')
     openstack._run_with_creds('my', 'args')
     assert cert_file.read_text() == 'foo\n'
 
-    load_creds.return_value['endpoint_tls_ca'] = None
-    del load_creds.return_value['version']
+    _load_creds.return_value['endpoint_tls_ca'] = None
+    del _load_creds.return_value['version']
     openstack._run_with_creds('my', 'args')
     env = run.call_args[1]['env']
     assert env['OS_CACERT'] == str(cert_file)
     assert 'OS_IDENTITY_API_VERSION' not in env
 
     cert_file.unlink()
-    load_creds.return_value['version'] = None
+    _load_creds.return_value['version'] = None
     openstack._run_with_creds('my', 'args')
     env = run.call_args[1]['env']
     assert 'OS_CACERT' not in env
     assert 'OS_IDENTITY_API_VERSION' not in env
+
+
+def test_default_subnet(_openstack):
+    members = [('192.168.0.1', 80), ('10.0.0.1', 80)]
+    _openstack.return_value = [
+        {'Name': 'a', 'Subnet': '192.168.0.0/24'},
+        {'Name': 'b', 'Subnet': '10.0.0.0/16'},
+    ]
+    assert openstack._default_subnet(members) == 'a'
+    assert openstack._default_subnet(list(reversed(members))) == 'b'
+    with pytest.raises(openstack.OpenStackLBError):
+        openstack._default_subnet([('10.1.0.1', 80)])
+
+
+def test_get_or_create(kv):
+    args = ('app', '80', 'subnet', 'alg', None, False)
+    with mock.patch.object(openstack.LoadBalancer, 'create') as create:
+        kv.get.return_value = {'sg_id': 'sg_id',
+                               'fip': 'fip',
+                               'address': 'address',
+                               'members': [[1, 2], [3, 4]]}
+        lb = openstack.LoadBalancer.get_or_create(*args)
+        assert not create.called
+        assert lb.name == 'openstack-integrator-1234-app'
+        assert lb.port == '80'
+        assert lb.subnet == 'subnet'
+        assert lb.algorithm == 'alg'
+        assert lb.fip_net is None
+        assert lb.manage_secgrps is False
+        assert lb._key == 'created_lbs.openstack-integrator-1234-app'
+        assert lb.sg_id == 'sg_id'
+        assert lb.fip == 'fip'
+        assert lb.address == 'address'
+        assert lb.members == {(1, 2), (3, 4)}
+        assert lb.is_created is True
+
+        kv.get.return_value = None
+        lb = openstack.LoadBalancer.get_or_create(*args)
+        assert create.called
+        assert lb.sg_id is None
+        assert lb.fip is None
+        assert lb.address is None
+        assert lb.members == set()
+
+        create.side_effect = CalledProcessError(1, 'cmd')
+        with pytest.raises(openstack.OpenStackLBError):
+            openstack.LoadBalancer.get_or_create(*args)
+
+
+def test_create_new(impl, sleep, log_err):
+    openstack.kv().get.return_value = None
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
+    assert not lb.is_created
+    lb.name = 'name'
+    impl.list_loadbalancers.return_value = []
+    impl.create_loadbalancer.return_value = {'id': '1234',
+                                             'vip_address': '1.1.1.1',
+                                             'vip_port_id': '4321'}
+    impl.show_loadbalancer.return_value = {'provisioning_status': 'ACTIVE'}
+    impl.show_pool.return_value = {'provisioning_status': 'ACTIVE'}
+    impl.find_secgrp.return_value = 'sg_id'
+    impl.list_listeners.return_value = []
+    impl.list_pools.return_value = []
+    impl.list_members.return_value = ['members']
+    impl.list_sg_rules.return_value = []
+    impl.get_port_sec_enabled.return_value = True
+    lb.create()
+    assert lb.sg_id is None
+    assert lb.fip is None
+    assert lb.address == '1.1.1.1'
+    assert lb.members == ['members']
+    assert lb.is_created
+    assert impl.create_loadbalancer.called
+    assert not impl.create_secgrp.called
+    impl.create_sg_rule.assert_called_with('sg_id', '1.1.1.1')
+    assert not impl.set_port_secgrp.called
+    assert impl.create_listener.called
+    assert impl.create_pool.called
+    assert not impl.list_fips.called
+    assert not impl.create_fip.called
+
+    impl.find_secgrp.return_value = None
+    with pytest.raises(openstack.OpenStackLBError):
+        lb.create()
+    log_err.assert_called_with('Unable to find default security group')
+
+    lb.fip_net = 'net'
+    lb.manage_secgrps = True
+    impl.create_secgrp.return_value = 'sg_id'
+    impl.list_fips.return_value = []
+    lb.create()
+    assert lb.sg_id == 'sg_id'
+    impl.create_secgrp.assert_called_with('name')
+    impl.set_port_secgrp.assert_called_with('4321', 'sg_id')
+    impl.create_fip.assert_called_with('1.1.1.1', '4321')
+
+
+def test_create_recover(impl, sleep):
+    openstack.kv().get.return_value = None
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', 'net', True)
+    lb.name = 'name'
+    impl.list_loadbalancers.return_value = [{'name': 'name'}]
+    impl.show_loadbalancer.return_value = {'id': '2345',
+                                           'provisioning_status': 'ACTIVE',
+                                           'vip_address': '1.1.1.1',
+                                           'vip_port_id': '4321'}
+    impl.find_secgrp.return_value = 'sg_id'
+    impl.list_sg_rules.return_value = [{'Port Range': '', 'IP Range': ''}]
+    impl.get_port_sec_enabled.return_value = False
+    impl.list_listeners.return_value = [{'name': 'name'}]
+    impl.list_pools.return_value = [{'name': 'name'}]
+    impl.list_fips.return_value = [
+        {'Fixed IP Address': '2.2.2.2', 'Floating IP Address': '3.3.3.3'},
+        {'Fixed IP Address': '1.1.1.1', 'Floating IP Address': '4.4.4.4'},
+    ]
+    impl.list_members.return_value = ['members']
+    lb.create()
+    assert lb.sg_id == 'sg_id'
+    assert lb.fip == '4.4.4.4'
+    assert lb.address == '1.1.1.1'
+    assert lb.members == ['members']
+    assert lb.is_created
+    assert not impl.create_loadbalancer.called
+    assert not impl.create_secgrp.called
+    assert not impl.create_listener.called
+    assert not impl.create_pool.called
+    assert not impl.create_fip.called
+
+
+def test_wait_not_pending(impl, sleep):
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
+    test_func = mock.Mock(side_effect=[
+        {'provisioning_status': 'PENDING_CREATE'},
+        {'provisioning_status': 'PENDING_UPDATE'},
+        {'provisioning_status': 'PENDING_DELETE'},
+        {'provisioning_status': 'ACTIVE'},
+    ])
+    lb._wait_not_pending(test_func)
+    assert sleep.call_count == 3
+
+    test_func = mock.Mock(return_value={
+        'provisioning_status': 'PENDING_DELETE',
+    })
+    with pytest.raises(openstack.OpenStackLBError):
+        lb._wait_not_pending(test_func)
+
+
+def test_find_matching_sg_rule(impl):
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
+    lb.address = '1.1.1.1'
+
+    impl.list_sg_rules.return_value = [{'Port Range': None,
+                                        'IP Range': None}]
+    assert lb._find_matching_sg_rule('sg_id')
+
+    impl.list_sg_rules.return_value = [{'Port Range': '60:90',
+                                        'IP Range': ''}]
+    assert lb._find_matching_sg_rule('sg_id')
+
+    impl.list_sg_rules.return_value = [{'Port Range': '',
+                                        'IP Range': '1.0.0.0/8'}]
+    assert lb._find_matching_sg_rule('sg_id')
+
+    impl.list_sg_rules.return_value = [{'Port Range': '81:90',
+                                        'IP Range': ''},
+                                       {'Port Range': '',
+                                        'IP Range': '2.0.0.0/8'}]
+    assert not lb._find_matching_sg_rule('sg_id')
+
+    impl.list_sg_rules.return_value = []
+    assert not lb._find_matching_sg_rule('sg_id')
+
+
+def test_find(impl, log_err):
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
+    lb.name = 'lb'
+    item1 = {'id': 1, 'name': 'not-lb'}
+    item2 = {'id': 2, 'name': 'lb'}
+    item3 = {'id': 3, 'name': 'lb'}
+    assert lb._find('foo', [item1]) is None
+    assert lb._find('foo', [item1, item2]) == item2
+    with pytest.raises(openstack.OpenStackLBError):
+        lb._find('foo', [item1, item2, item3])
+    log_err.assert_called_with('Multiple {} found: {}', 'foo', 'lb')
+
+
+def test_update_members(impl):
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
+    impl.show_pool.return_value = {'provisioning_status': 'ACTIVE'}
+    lb.members = {(1, 2), (3, 4)}
+    lb.update_members({(1, 2), (3, 4)})
+    assert not impl.delete_member.called
+    assert not impl.create_member.called
+
+    lb.members = {(1, 2), (3, 4)}
+    lb.update_members({(1, 2), (3, 4), (5, 6)})
+    assert not impl.delete_member.called
+    assert impl.create_member.called
+    assert lb.members == {(1, 2), (3, 4), (5, 6)}
+
+    impl.create_member.reset_mock()
+    lb.members = {(1, 2), (3, 4)}
+    lb.update_members({(1, 2)})
+    assert impl.delete_member.called
+    assert not impl.create_member.called
+
+    impl.delete_member.reset_mock()
+    lb.members = {(1, 2), (3, 4)}
+    lb.update_members({(5, 6)})
+    assert impl.delete_member.called
+    assert impl.create_member.called
+
+    impl.delete_member.side_effect = CalledProcessError(1, 'cmd')
+    lb.members = {(1, 2), (3, 4)}
+    with pytest.raises(openstack.OpenStackLBError):
+        lb.update_members(set())
+
+    impl.delete_member.side_effect = AssertionError('should not be called')
+    impl.create_member.side_effect = CalledProcessError(1, 'cmd')
+    lb.members = set()
+    with pytest.raises(openstack.OpenStackLBError):
+        lb.update_members({(1, 2)})

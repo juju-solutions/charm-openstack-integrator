@@ -53,30 +53,60 @@ options:
       as a config option in a Juju CLI invocation.
     type: string
     default: ""
+  lb-subnet:
+    description: |
+      Override the subnet (name or ID) in which this charm will create load
+      balancers for other charms related on the loadbalancer endpoint. If not
+      set, the subnet over which the requesting application is related will be
+      used.
+    type: string
+    default: ""
+  lb-floating-network:
+    description: |
+      If set, this charm will assign a floating IP in this network (name or ID)
+      for load balancers created for other charms related on the loadbalancer
+      endpoint.
+    type: string
+    default: ""
+  lb-port:
+    description: |
+      Port to use for load balancers created by this charm for other charms
+      related on the loadbalancer endpoint.
+    type: int
+    default: 443
   subnet-id:
     description: |
-      Subnet ID from OpenStack that will be used to setup Load Balancers. Flag
-      LoadBalancer becomes active on cloud.conf file only if this config is set.
+      If set, it will be passed to integrated workloads to indicate in what
+      subnet load balancers should be created. For example, this will determine
+      what subnet Kubernetes uses for LoadBalancer type services in the
+      cluster.
     type: string
     default: ""
   floating-network-id:
     description: |
-      Floating IP network ID that should be used to set FIPs for load balancers.
+      If set, it will be passed to integrated workloads to indicate that
+      floating IPs should be created in the given network for load balancers
+      that those workloads manage. For example, this will determine whether and
+      where FIPs will be created by Kubernetes for LoadBalancer type services
+      in the cluster.
     type: string
     default: ""
   lb-method:
     description: |
-      Specifies an algorithm load balancer, that should be one between ROUND_ROBIN,
-      LEAST_CONNECTIONS, SOURCE_IP.
+      Algorithm that will be used by load balancers, which must be one of:
+      ROUND_ROBIN, LEAST_CONNECTIONS, SOURCE_IP. This applies both to load
+      balancers managed by this charm for applications related via the
+      loadbalancer endpoint, as well as to load balancers managed by integrated
+      workloads, such as Kubernetes.
     type: string
-    default: ""
+    default: "ROUND_ROBIN"
   manage-security-groups:
     description: |
-      Whether or not the Load Balancer should automatically manage security groups rule.
-      In case it is set to false, Load Balancer rules will be added to project (tenant)
-      default security-group. In case it is set to true, a new security-group will be
-      created for each Load Balancer, as well as its corresponding rules.
-      It is advised to set appropriate number of security-groups and rules.
+      Whether or not each load balancer should have its own security group, or
+      if all load balancers should use the default security group for the
+      project.  This applies both to load balancers managed by this charm for
+      applications related via the loadbalancer endpoint, as well as to load
+      balancers managed by integrated workloads, such as Kubernetes.
     type: boolean
     default: false
   bs-version:

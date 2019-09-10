@@ -58,7 +58,7 @@ def get_creds():
           'charm.openstack.creds.set')
 @when_not('endpoint.clients.requests-pending')
 def no_requests():
-    layer.status.active('ready')
+    layer.status.active('Ready')
 
 
 @when_all('snap.installed.openstackclients',
@@ -67,6 +67,7 @@ def no_requests():
 @when_any('endpoint.clients.requests-pending',
           'config.changed')
 def handle_requests():
+    layer.status.maintenance('Granting integration requests')
     clients = endpoint_from_name('clients')
     config_change = is_flag_set('config.changed')
     config = hookenv.config()
@@ -76,7 +77,7 @@ def handle_requests():
         # use bool() to force True / False instead of 1 / 0
         manage_security_groups = bool(manage_security_groups)
     except ValueError:
-        layer.status.blocked('invalid value for manage-security-groups config')
+        layer.status.blocked('Invalid value for manage-security-groups config')
         return
     except AttributeError:
         # in case manage_security_groups is already bool
@@ -84,7 +85,7 @@ def handle_requests():
     requests = clients.all_requests if config_change else clients.new_requests
     for request in requests:
         layer.status.maintenance(
-            'granting request for {}'.format(request.unit_name))
+            'Granting request for {}'.format(request.unit_name))
         creds = layer.openstack.get_user_credentials()
         request.set_credentials(**creds)
         request.set_lbaas_config(config['subnet-id'],
@@ -109,12 +110,20 @@ def handle_requests():
 @when_all('charm.openstack.creds.set',
           'endpoint.loadbalancer.joined')
 def create_or_update_loadbalancers():
-    clients = endpoint_from_name('loadbalancer')
-    for relation in clients.relations:
-        address, port = layer.openstack.create_or_update_loadbalancer(relation)
-        clients.set_address_port(address, port, relation)
+    layer.status.maintenance('Managing load balancers')
+    lb_clients = endpoint_from_name('loadbalancer')
+    try:
+        for request in lb_clients.requests:
+            if not request.members:
+                continue
+            lb = layer.openstack.manage_loadbalancer(request.application_name,
+                                                     request.members)
+            request.set_address_port(lb.fip or lb.address, lb.port)
+    except layer.openstack.OpenStackError as e:
+        layer.status.blocked(str(e))
 
 
 @hook('stop')
 def cleanup():
+    # TODO: Also clean up removed LBs as they go away
     layer.openstack.cleanup()
