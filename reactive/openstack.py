@@ -107,8 +107,7 @@ def handle_requests():
     clients.mark_completed()
 
 
-@when_all('charm.openstack.creds.set')
-@when_any('internal-lb-server.available',
+@when_all('charm.openstack.creds.set',
           'endpoint.loadbalancer.joined')
 def create_or_update_loadbalancers():
     layer.status.maintenance('Managing load balancers')
