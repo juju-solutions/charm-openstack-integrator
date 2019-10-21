@@ -564,24 +564,10 @@ class BaseLBImpl:
         self.algorithm = algorithm
         self.fip_net = fip_net
         self.manage_secgrps = manage_secgrps
-        self._project_id = kv().get('project_id')
-
-    @property
-    def project_id(self):
-        if not self._project_id:
-            creds = _load_creds()
-            project = creds['project_name']
-            project_domain = creds['project_domain_name']
-            self._project_id = _openstack('project', 'show',
-                                          '--domain', project_domain,
-                                          project)['id']
-            kv().set('project_id', self._project_id)
-        return self._project_id
 
     def find_secgrp(self, name):
         secgrps = {sg['Name']: sg
-                   for sg in _openstack('security', 'group', 'list',
-                                        '--project', self.project_id)}
+                   for sg in _openstack('security', 'group', 'list')}
         return secgrps.get(name, {}).get('ID')
 
     def create_secgrp(self, name):
