@@ -264,7 +264,10 @@ def _run_with_creds(*args):
 
 
 def _openstack(*args):
-    output = _run_with_creds('openstack', *args, '--format=yaml')
+    if args[0] == 'port' and args[1] == 'set':
+        output = _run_with_creds('openstack', *args)
+    else:
+        output = _run_with_creds('openstack', *args, '--format=yaml')
     return yaml.safe_load(output)
 
 
