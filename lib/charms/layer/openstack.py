@@ -595,7 +595,10 @@ class BaseLBImpl:
         return network_info['port_security_enabled']
 
     def set_port_secgrp(self, port_id, sg_id):
-        _openstack('port', 'set', '--security-group', sg_id, port_id)
+        # nb: can't use _openstack() because the command 
+        # doesn't support --format=yaml
+        _run_with_creds('openstack', 'port',
+                        'set', '--security-group', sg_id, port_id)
 
     def list_fips(self):
         return _openstack('floating', 'ip', 'list')
