@@ -264,10 +264,7 @@ def _run_with_creds(*args):
 
 
 def _openstack(*args):
-    if args[0] == 'port' and args[1] == 'set':
-        output = _run_with_creds('openstack', *args)
-    else:
-        output = _run_with_creds('openstack', *args, '--format=yaml')
+    output = _run_with_creds('openstack', *args, '--format=yaml')
     return yaml.safe_load(output)
 
 
@@ -612,7 +609,10 @@ class BaseLBImpl:
         return network_info['port_security_enabled']
 
     def set_port_secgrp(self, port_id, sg_id):
-        _openstack('port', 'set', '--security-group', sg_id, port_id)
+        # nb: can't use _openstack() because the command 
+        # doesn't support --format=yaml
+        _run_with_creds('openstack', 'port',
+                        'set', '--security-group', sg_id, port_id)
 
     def list_fips(self):
         return _openstack('floating', 'ip', 'list')
