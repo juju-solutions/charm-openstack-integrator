@@ -363,3 +363,29 @@ def test_update_members(impl):
     lb.members = set()
     with pytest.raises(openstack.OpenStackLBError):
         lb.update_members({(1, 2)})
+
+
+def test_is_base64():
+    cert = ('-----BEGIN CERTIFICATE-----\nMIIDITCCAgmgAwIBAgIUeQxHSsZt6auk1oW+'
+            'SRFXC4T6nNcwDQYJKoZIhvcNAQEL\nBQAwIDELMAkGA1UEBhMCVUsxETAPBgNVBAo'
+            'MCElubWFyc2F0MB4XDTE5MTEwNDE1\nMTQzOFoXDTI5MTEwMTE1MTQzOFowIDELMA'
+            'kGA1UEBhMCVUsxETAPBgNVBAoMCElu\nbWFyc2F0MIIBIjANBgkqhkiG9w0BAQEFA'
+            'AOCAQ8AMIIBCgKCAQEA09qCmv8jF+N1\ndl/ae3VQV95FG7WFrjS6fbZ1TpXkO9Vs'
+            'PKhA9lRUBxs58noKIkMIUeXYy4wvSu28\nX67NqB2bv3iyns/mEzPYE1GxtFXIPhk'
+            'KO22vqVLZ0CFAuV47AhqDOXtyqwwfxoBT\nKxMi430UCb+3cPaev/mZMlvf6iJfdi'
+            'hyPfMEwtIanS/QKgEvykhP1kAZ36ActFmK\nWnJtjBBFUKQIBQzguMTqUXX7wvwRe'
+            'gK8lgXiZ6iZiOza0C7hSdBVylcKeaqoLnP5\nW93m3YZTXc08A30PieTJQFD6Bm+4'
+            '1Kv2FxQAXjRnCzvIJL44zJXjLmnUdZbSzdl8\nPpu3wJu9cQIDAQABo1MwUTAdBgN'
+            'VHQ4EFgQUwQsYIyqud2WQkAlcDwIuu7nAvnYw\nHwYDVR0jBBgwFoAUwQsYIyqud2'
+            'WQkAlcDwIuu7nAvnYwDwYDVR0TAQH/BAUwAwEB\n/zANBgkqhkiG9w0BAQsFAAOCA'
+            'QEAn5oQYeyaxcqOjzUxbkEy4pOJMg/nTKkt+8yh\nFSqUv1Vc3HGg65uGq08eJDq9'
+            'AP7PrfvSQJWQpFBS80bNN8idCmhMutpA8X6+Z0wv\n0p5dzQFAUdSLLN0so4iXKtP'
+            'k5wp0r84W0xbqWPRWRSw+lCe1WrMK+ARDpPv+AxOW\nf7JFQkqzEsWu6RCjy0KobO'
+            'y7PPq17wXEhXynNcMAXjQe9DkTBb34K6PYku1Ftxfr\n3IRWaSrDB9BJTje6/tmz7'
+            'IcO8ss+Y3gUZeaqTLdZz8RJUlJqNqfdTQif2hKLYjro\nBwZYRQo8TkDmSlz00LwQ'
+            'So1xLX27nGHB621pgNCZbJMKvZOrQg==\n-----END CERTIFICATE-----\n')
+    cert = cert.encode('utf8')
+    assert openstack._is_base64(cert) is False
+    # Base64 encoded foobar string
+    foobar = 'Zm9vYmFyCg==\n'.encode('utf8')
+    assert openstack._is_base64(foobar)
