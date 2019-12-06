@@ -140,10 +140,15 @@ def manage_loadbalancer(app_name, members):
 def cleanup():
     # note: we don't bother cleaning up the SG because it's a singleton
     # and can be reused in other / future deployments
-    for lb in LoadBalancer.get_all():
+    lbmanager = LoadBalancer('cleanup', None, None, None, None, None)
+    for lb in lbmanager.get_all():
         try:
-            lb.delete()
+            log("Deleting loadbalancer '{}'".format(lb['name']))
+            _openstack('loadbalancer', 'delete', '--cascade', lb['name'],
+                       yaml_output=False)
         except OpenStackLBError:
+            log_err("Unable to delete loadbalancer '{}'".
+                    format(lb.get('name', 'unknown')))
             # we're dying anyway, so we can't report this, but maybe we can
             # delete the rest
             pass
@@ -263,8 +268,12 @@ def _run_with_creds(*args):
     return result.stdout.decode('utf8')
 
 
-def _openstack(*args):
-    output = _run_with_creds('openstack', *args, '--format=yaml')
+def _openstack(*args, yaml_output=True):
+    if yaml_output:
+        output = _run_with_creds('openstack', *args, '--format=yaml')
+    else:
+        output = _run_with_creds('openstack', *args)
+
     return yaml.safe_load(output)
 
 
@@ -344,6 +353,15 @@ class LoadBalancer:
         self.is_created = False
         self._try_load_cached_info()
         self._impl = self._get_impl()
+
+    def get_all(self):
+        lbs = []
+        for lb in self._impl.list_loadbalancers():
+            if lb['name'].startswith('openstack-integrator-{}'
+                                     .format(MODEL_SHORT_ID)):
+                lbs.append(lb)
+
+        return lbs
 
     def _get_impl(self):
         cls = type(self)
@@ -595,7 +613,7 @@ class BaseLBImpl:
         return network_info['port_security_enabled']
 
     def set_port_secgrp(self, port_id, sg_id):
-        # nb: can't use _openstack() because the command 
+        # nb: can't use _openstack() because the command
         # doesn't support --format=yaml
         _run_with_creds('openstack', 'port',
                         'set', '--security-group', sg_id, port_id)
