@@ -210,10 +210,8 @@ def _normalize_creds(creds_data):
     # but we should ensure that it follows the interface docs
     if ca_cert:
         ca_cert = ca_cert.encode('utf8')  # b64 deals with bytes
-        try:
+        if _is_base64(ca_cert):
             ca_cert = b64decode(ca_cert)
-        except Exception:
-            pass  # might not be encoded
         ca_cert = b64encode(ca_cert)  # ensure is encoded
         ca_cert = ca_cert.decode('utf8')  # relations deal with strings
 
@@ -312,6 +310,17 @@ def _default_subnet(members):
     else:
         log_err('Unable to find subnet for {}', address)
         raise OpenStackLBError(action='create', exc=False)
+
+
+def _is_base64(s):
+    """
+    Verify is the utf8 encoded string is base64 encoded or not
+    """
+    try:
+        s = s.replace(b'\n', b'')
+        return b64encode(b64decode(s)) == s
+    except Exception:
+        return False
 
 
 class LoadBalancer:
@@ -675,6 +684,7 @@ class OctaviaLBImpl(BaseLBImpl):
     """
     Subclass with implementations specific to Octavia-enabled clouds.
     """
+
     def list_loadbalancers(self):
         return _openstack('loadbalancer', 'list')
 
@@ -741,6 +751,7 @@ class NeutronLBImpl(BaseLBImpl):
     """
     Subclass with implementations specific to non-Octavia-enabled clouds.
     """
+
     def list_loadbalancers(self):
         return _neutron('lbaas-loadbalancer-list')
 
