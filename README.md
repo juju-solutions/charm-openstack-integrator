@@ -9,7 +9,7 @@ are related to this charm.
 When on OpenStack, this charm can be deployed, granted trust via Juju to access
 OpenStack, and then related to an application that supports the [interface][].
 
-For example, [CDK][] has support for this, and can be deployed with the
+For example, [Charmed Kubernetes][] has support for this, and can be deployed with the
 following bundle overlay:
 
 ```yaml
@@ -18,8 +18,8 @@ applications:
     charm: cs:~containers/openstack-integrator
     num_units: 1
 relations:
-  - ['openstack-integrator', 'kubernetes-master']
-  - ['openstack-integrator', 'kubernetes-worker']
+  - ['openstack-integrator:clients', 'kubernetes-master:openstack']
+  - ['openstack-integrator:clients', 'kubernetes-worker:openstack']
 ```
 
 Using Juju 2.4-beta1 or later:
@@ -118,4 +118,4 @@ watch kubectl get svc -o wide --selector=run=load-balancer-example
 
 
 [interface]: https://github.com/juju-solutions/interface-openstack-integration
-[CDK]: https://jujucharms.com/canonical-kubernetes
+[Charmed Kubernetes]: https://jaas.ai/charmed-kubernetes
