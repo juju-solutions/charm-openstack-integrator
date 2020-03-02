@@ -10,6 +10,7 @@ maintainers: ['Cory Johns <cory.johns@canonical.com>']
 series:
   - bionic
   - xenial
+  - focal
 tags: ['openstack', 'native', 'integration']
 provides:
   clients:
