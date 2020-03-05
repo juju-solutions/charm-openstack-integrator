@@ -1,4 +1,3 @@
-import subprocess
 from distutils.util import strtobool
 from charmhelpers.core import hookenv
 from charms.reactive import (
@@ -17,16 +16,8 @@ from charms import layer
 
 @when_all('snap.installed.openstackclients')
 def set_app_ver():
-    try:
-        result = subprocess.run(['snap', 'info', 'openstackclients'],
-                                stdout=subprocess.PIPE)
-    except subprocess.CalledProcessError:
-        pass
-    else:
-        stdout = result.stdout.decode('utf8').splitlines()
-        version = [line.split()[1] for line in stdout if 'installed' in line]
-        if version:
-            hookenv.application_version_set(version[0])
+    version = layer.snap.get_installed_version('openstackclients')
+    hookenv.application_version_set(version)
 
 
 @when_any('config.changed.credentials',
