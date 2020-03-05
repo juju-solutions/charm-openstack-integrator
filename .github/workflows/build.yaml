@@ -44,6 +44,7 @@ jobs:
           echo $CHARMSTORE_CREDENTIAL > ~/.go-cookies
           rev=$(charm push /tmp/charm-builds/openstack-integrator | head -n1 | cut -d" " -f2)
           charm grant ~k8s-team-ci/openstack-integrator --channel unpublished --acl read everyone
-          touch /tmp/openstackclients.snap
-          charm attach ~k8s-team-ci/openstack-integrator openstackclients=/tmp/openstackclients.snap -c unpublished
-          charm release $rev
+          #touch /tmp/openstackclients.snap
+          #charm attach ~k8s-team-ci/openstack-integrator openstackclients=/tmp/openstackclients.snap -c unpublished
+          charm release $rev -r openstackclients-0 --channel edge
+          charm grant ~k8s-team-ci/openstack-integrator --channel edge --acl read everyone
