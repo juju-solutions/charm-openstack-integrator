@@ -43,3 +43,4 @@ jobs:
         run: |
           echo $CHARMSTORE_CREDENTIAL > ~/.go-cookies
           charm push /tmp/charm-builds/openstack-integrator
+          charm release cs:~k8s-team-ci/openstack-integrator
