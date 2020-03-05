@@ -42,5 +42,5 @@ jobs:
           CHARMSTORE_CREDENTIAL: ${{ secrets.CHARMSTORE_CREDENTIAL }}
         run: |
           echo $CHARMSTORE_CREDENTIAL > ~/.go-cookies
-          charm push /tmp/charm-builds/openstack-integrator
-          charm release cs:~k8s-team-ci/openstack-integrator
+          rev=${charm push /tmp/charm-builds/openstack-integrator | cut -d" " -f2}
+          charm release $rev
