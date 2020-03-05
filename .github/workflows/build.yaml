@@ -24,7 +24,6 @@ jobs:
       - name: Run Tox
         run: tox
 
-jobs:
   build:
     needs: test
     runs-on: ubuntu-latest
