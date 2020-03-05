@@ -35,4 +35,11 @@ jobs:
         run: sudo snap install charm --classic
 
       - name: Build charm
-        run: charm build -o /tmp/charm .
+        run: charm build -o /tmp/thischarm .
+
+      - name: Publish charm
+        env: # Or as an environment variable
+          CHARMSTORE_CREDENTIAL: ${{ secrets.CHARMSTORE_CREDENTIAL }}
+        run: |
+          echo $CHARMSTORE_CREDENTIAL > ~/.go-cookies
+          charm push /tmp/thischarm
