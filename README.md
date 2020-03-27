@@ -75,7 +75,7 @@ spec:
   resources:
     requests:
       storage: 100Mi
-  storageClassName: openstack-standard
+  storageClassName: cdk-cinder
 EOY
 
 # create the busybox pod with a volume using that PVC:
