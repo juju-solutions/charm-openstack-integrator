@@ -4,24 +4,20 @@ import tempfile
 from base64 import b64encode
 from pathlib import Path
 from unittest import mock
-from subprocess import CalledProcessError
 
-from charms.layer import openstack
+# patched
+import subprocess
+from urllib.request import urlopen
+from time import sleep
 
+from charms.unit_test import patch_fixture
+import charms.layer.openstack
 
-def patch_fixture(patch_target):
-    @pytest.fixture()
-    def _fixture():
-        with mock.patch(patch_target) as m:
-            yield m
-    return _fixture
+openstack = charms.layer.openstack
 
-
-urlopen = patch_fixture('charms.layer.openstack.urlopen')
 log_err = patch_fixture('charms.layer.openstack.log_err')
 _load_creds = patch_fixture('charms.layer.openstack._load_creds')
 detect_octavia = patch_fixture('charms.layer.openstack.detect_octavia')
-run = patch_fixture('subprocess.run')
 _run_with_creds = patch_fixture('charms.layer.openstack._run_with_creds')
 _openstack = patch_fixture('charms.layer.openstack._openstack')
 _neutron = patch_fixture('charms.layer.openstack._neutron')
@@ -29,21 +25,25 @@ LoadBalancerClient = patch_fixture('charms.layer.openstack.LoadBalancerClient')
 OctaviaLBClient = patch_fixture('charms.layer.openstack.OctaviaLBClient')
 NeutronLBClient = patch_fixture('charms.layer.openstack.NeutronLBClient')
 _default_subnet = patch_fixture('charms.layer.openstack._default_subnet')
-sleep = patch_fixture('time.sleep')
+kv = patch_fixture('charms.layer.openstack.kv')
+config = patch_fixture('charms.layer.openstack.config', {})
 
 
-@pytest.fixture
-def cert_file():
+class MockCalledProcessError(Exception):
+    def __init__(self, return_code, stderr):
+        self.stderr = stderr
+
+
+subprocess.CalledProcessError = MockCalledProcessError
+
+
+@pytest.fixture(autouse=True)
+def clean():
     with tempfile.TemporaryDirectory() as tmpdir:
         cert_file = Path(tmpdir) / 'test.crt'
-        with mock.patch('charms.layer.openstack.CA_CERT_FILE', cert_file):
-            yield cert_file
-
-
-@pytest.fixture
-def config():
-    with mock.patch('charms.layer.openstack.config', {}) as config:
-        yield config
+        openstack.CA_CERT_FILE = cert_file
+        openstack.config = {}
+        yield
 
 
 @pytest.fixture
@@ -53,13 +53,7 @@ def impl():
         yield _get_impl()
 
 
-@pytest.fixture
-def kv():
-    with mock.patch.object(openstack, 'kv') as kv:
-        yield kv()
-
-
-def test_determine_version(urlopen, log_err):
+def test_determine_version(log_err):
     assert openstack._determine_version({'version': 3}, None) == '3'
     assert not urlopen.called
     assert not log_err.called
@@ -95,7 +89,7 @@ def _b64(s):
     return b64encode(s.encode('utf8')).decode('utf8')
 
 
-def test_run_with_creds(cert_file, _load_creds, run):
+def test_run_with_creds(_load_creds):
     _load_creds.return_value = {
         'auth_url': 'auth_url',
         'region': 'region',
@@ -109,9 +103,9 @@ def test_run_with_creds(cert_file, _load_creds, run):
     }
     with mock.patch.dict(os.environ, {'PATH': 'path'}):
         openstack._run_with_creds('my', 'args')
-    assert cert_file.exists()
-    assert cert_file.read_text() == 'endpoint_tls_ca\n'
-    assert run.call_args == mock.call(('my', 'args'), env={
+    assert openstack.CA_CERT_FILE.exists()
+    assert openstack.CA_CERT_FILE.read_text() == 'endpoint_tls_ca\n'
+    assert subprocess.run.call_args == mock.call(('my', 'args'), env={
         'PATH': '/snap/bin:path',
         'OS_AUTH_URL': 'auth_url',
         'OS_USERNAME': 'username',
@@ -121,24 +115,24 @@ def test_run_with_creds(cert_file, _load_creds, run):
         'OS_PROJECT_NAME': 'project_name',
         'OS_PROJECT_DOMAIN_NAME': 'project_domain_name',
         'OS_IDENTITY_API_VERSION': '3',
-        'OS_CACERT': str(cert_file),
+        'OS_CACERT': str(openstack.CA_CERT_FILE),
     }, check=True, stdout=mock.ANY)
 
     _load_creds.return_value['endpoint_tls_ca'] = _b64('foo')
     openstack._run_with_creds('my', 'args')
-    assert cert_file.read_text() == 'foo\n'
+    assert openstack.CA_CERT_FILE.read_text() == 'foo\n'
 
     _load_creds.return_value['endpoint_tls_ca'] = None
-    del _load_creds.return_value['version']
+    del openstack._load_creds.return_value['version']
     openstack._run_with_creds('my', 'args')
-    env = run.call_args[1]['env']
-    assert env['OS_CACERT'] == str(cert_file)
+    env = subprocess.run.call_args[1]['env']
+    assert env['OS_CACERT'] == str(openstack.CA_CERT_FILE)
     assert 'OS_IDENTITY_API_VERSION' not in env
 
-    cert_file.unlink()
+    openstack.CA_CERT_FILE.unlink()
     _load_creds.return_value['version'] = None
     openstack._run_with_creds('my', 'args')
-    env = run.call_args[1]['env']
+    env = subprocess.run.call_args[1]['env']
     assert 'OS_CACERT' not in env
     assert 'OS_IDENTITY_API_VERSION' not in env
 
@@ -158,10 +152,10 @@ def test_default_subnet(_openstack):
 def test_get_or_create(kv):
     args = ('app', '80', 'subnet', 'alg', None, False)
     with mock.patch.object(openstack.LoadBalancer, 'create') as create:
-        kv.get.return_value = {'sg_id': 'sg_id',
-                               'fip': 'fip',
-                               'address': 'address',
-                               'members': [[1, 2], [3, 4]]}
+        kv().get.return_value = {'sg_id': 'sg_id',
+                                 'fip': 'fip',
+                                 'address': 'address',
+                                 'members': [[1, 2], [3, 4]]}
         lb = openstack.LoadBalancer.get_or_create(*args)
         assert not create.called
         assert lb.name == 'openstack-integrator-1234-app'
@@ -177,7 +171,7 @@ def test_get_or_create(kv):
         assert lb.members == {(1, 2), (3, 4)}
         assert lb.is_created is True
 
-        kv.get.return_value = None
+        kv().get.return_value = None
         lb = openstack.LoadBalancer.get_or_create(*args)
         assert create.called
         assert lb.sg_id is None
@@ -185,12 +179,12 @@ def test_get_or_create(kv):
         assert lb.address is None
         assert lb.members == set()
 
-        create.side_effect = CalledProcessError(1, 'cmd')
+        create.side_effect = subprocess.CalledProcessError(1, 'cmd')
         with pytest.raises(openstack.OpenStackLBError):
             openstack.LoadBalancer.get_or_create(*args)
 
 
-def test_create_new(impl, sleep, log_err):
+def test_create_new(impl, log_err):
     openstack.kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
     assert not lb.is_created
@@ -225,7 +219,8 @@ def test_create_new(impl, sleep, log_err):
     impl.find_secgrp.return_value = None
     with pytest.raises(openstack.OpenStackLBError):
         lb.create()
-    log_err.assert_called_with('Unable to find default security group')
+    openstack.log_err.assert_called_with('Unable to find default '
+                                         'security group')
 
     lb.fip_net = 'net'
     lb.manage_secgrps = True
@@ -238,7 +233,7 @@ def test_create_new(impl, sleep, log_err):
     impl.create_fip.assert_called_with('1.1.1.1', '4321')
 
 
-def test_create_recover(impl, sleep):
+def test_create_recover(impl):
     openstack.kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', 'net', True)
     lb.name = 'name'
@@ -270,7 +265,7 @@ def test_create_recover(impl, sleep):
     assert not impl.create_fip.called
 
 
-def test_wait_not_pending(impl, sleep):
+def test_wait_not_pending(impl):
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
     test_func = mock.Mock(side_effect=[
         {'provisioning_status': 'PENDING_CREATE'},
@@ -353,13 +348,13 @@ def test_update_members(impl):
     assert impl.delete_member.called
     assert impl.create_member.called
 
-    impl.delete_member.side_effect = CalledProcessError(1, 'cmd')
+    impl.delete_member.side_effect = subprocess.CalledProcessError(1, 'cmd')
     lb.members = {(1, 2), (3, 4)}
     with pytest.raises(openstack.OpenStackLBError):
         lb.update_members(set())
 
     impl.delete_member.side_effect = AssertionError('should not be called')
-    impl.create_member.side_effect = CalledProcessError(1, 'cmd')
+    impl.create_member.side_effect = subprocess.CalledProcessError(1, 'cmd')
     lb.members = set()
     with pytest.raises(openstack.OpenStackLBError):
         lb.update_members({(1, 2)})
