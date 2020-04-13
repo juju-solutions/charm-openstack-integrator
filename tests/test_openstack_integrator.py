@@ -12,6 +12,7 @@ from time import sleep
 
 from charms.unit_test import patch_fixture
 import charms.layer.openstack
+import reactive.openstack
 
 openstack = charms.layer.openstack
 
@@ -384,3 +385,9 @@ def test_is_base64():
     # Base64 encoded foobar string
     foobar = 'Zm9vYmFyCg==\n'.encode('utf8')
     assert openstack._is_base64(foobar)
+
+
+def test_series_upgrade():
+    assert charms.layer.status.blocked.call_count == 0
+    reactive.openstack.pre_series_upgrade()
+    assert charms.layer.status.blocked.call_count == 1
