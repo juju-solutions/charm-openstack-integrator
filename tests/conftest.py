@@ -1,12 +1,9 @@
-import os
-import sys
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
-# mock dependencies which we don't care about covering in our tests
-ch = MagicMock()
-sys.modules['charmhelpers'] = ch
-sys.modules['charmhelpers.core'] = ch.core
-sys.modules['charmhelpers.core.unitdata'] = ch.core.unitdata
-sys.modules['charms.layer.status'] = MagicMock()
+import charms.unit_test
 
-os.environ['JUJU_MODEL_UUID'] = 'test-1234'
+
+charms.unit_test.patch_reactive()
+charms.unit_test.patch_module('subprocess')
+charms.unit_test.patch_module('urllib.request')
+patch('time.sleep').start()
