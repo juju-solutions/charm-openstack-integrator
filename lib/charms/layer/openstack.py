@@ -431,7 +431,7 @@ class LoadBalancer:
                 raise OpenStackLBError(action='create', exc=False)
             log('Using default security group ({})', sg_id)
         if not self._find_matching_sg_rule(sg_id):
-            self._impl.create_sg_rule(sg_id, self.address)
+            self._impl.create_sg_rule(sg_id, self.address, self.port)
             log('Added rule for {}:{} to security group {} ({})',
                 self.address, self.port, self.name, sg_id)
         else:
@@ -469,6 +469,11 @@ class LoadBalancer:
         self.members = self._impl.list_members()
         if self.members:
             log('Found existing members: {}', self.members)
+
+        if self._impl.get_port_sec_enabled():
+            sg_id = self._impl.create_secgrp('lb-kubernetes-master')
+            subnet_cidr = self._impl.get_subnet_cidr(self.subnet)
+            self._impl.create_sg_rule(sg_id, subnet_cidr, 6443)
 
         self._update_cached_info()
         self.is_created = True
@@ -538,6 +543,11 @@ class LoadBalancer:
             added_members = members - self.members
             for member in added_members:
                 self._impl.create_member(member)
+                if self._impl.get_port_sec_enabled():
+                    addr, _ = member
+                    port_id = self._impl.find_port(addr)
+                    sg_id = self._impl.find_secgrp('lb-kubernetes-master')
+                    self._impl.set_port_secgrp(port_id, sg_id)
                 log('Added member: {}', member)
                 self._wait_pool_not_pending()
         except subprocess.CalledProcessError:
@@ -608,12 +618,12 @@ class BaseLBImpl:
         return _openstack('security', 'group', 'rule', 'list',
                           sg_id, '--ingress', '--protocol=tcp')
 
-    def create_sg_rule(self, sg_id, address):
+    def create_sg_rule(self, sg_id, address, port):
         _openstack('security', 'group', 'rule', 'create',
                    '--ingress',
                    '--protocol', 'tcp',
                    '--remote-ip', address,
-                   '--dst-port', self.port,
+                   '--dst-port', port,
                    sg_id)
 
     def get_port_sec_enabled(self):
@@ -639,6 +649,14 @@ class BaseLBImpl:
 
     def delete_fip(self, fip):
         _openstack('floating', 'ip', 'delete', fip)
+
+    def find_port(self, address):
+        return _openstack('port', 'list', '--fixed-ip',
+                          'ip-address={}'.format(address), '-c', 'ID', '-f',
+                          'value')
+
+    def get_subnet_cidr(self, name):
+        return _openstack('subnet', 'show', name, '-c', 'cidr', '-f', 'value')
 
     def list_loadbalancers(self):
         raise NotImplementedError()

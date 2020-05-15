@@ -202,6 +202,8 @@ def test_create_new(impl, log_err):
     impl.list_members.return_value = ['members']
     impl.list_sg_rules.return_value = []
     impl.get_port_sec_enabled.return_value = True
+    impl.get_subnet_cidr.return_value = '1.1.1.1/32'
+    impl.create_secgrp.return_value = 'lb-kubernetes-master'
     lb.create()
     assert lb.sg_id is None
     assert lb.fip is None
@@ -209,8 +211,9 @@ def test_create_new(impl, log_err):
     assert lb.members == ['members']
     assert lb.is_created
     assert impl.create_loadbalancer.called
-    assert not impl.create_secgrp.called
-    impl.create_sg_rule.assert_called_with('sg_id', '1.1.1.1')
+    impl.create_secgrp.assert_called_with('lb-kubernetes-master')
+    impl.create_sg_rule.assert_called_with('lb-kubernetes-master',
+                                           '1.1.1.1/32', 6443)
     assert not impl.set_port_secgrp.called
     assert impl.create_listener.called
     assert impl.create_pool.called
@@ -229,7 +232,8 @@ def test_create_new(impl, log_err):
     impl.list_fips.return_value = []
     lb.create()
     assert lb.sg_id == 'sg_id'
-    impl.create_secgrp.assert_called_with('name')
+    impl.create_secgrp.assert_has_calls([
+        mock.call('name'), mock.call('lb-kubernetes-master')])
     impl.set_port_secgrp.assert_called_with('4321', 'sg_id')
     impl.create_fip.assert_called_with('1.1.1.1', '4321')
 
