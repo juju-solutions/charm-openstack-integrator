@@ -8,6 +8,7 @@ from ipaddress import ip_address, ip_network
 from pathlib import Path
 from traceback import format_exc
 from urllib.request import urlopen
+from urllib.parse import urlparse
 
 import yaml
 
@@ -230,6 +231,30 @@ def _normalize_creds(creds_data):
 
 def _save_creds(creds_data):
     kv().set('charm.openstack.full-creds', creds_data)
+
+
+def get_creds_and_reformat():
+    creds = _load_creds()
+
+    formatted_creds = {}
+
+    auth_url_parsed = urlparse(creds['auth_url'])
+
+    formatted_creds['auth_protocol'] = auth_url_parsed.scheme
+    formatted_creds['credentials_protocol'] = auth_url_parsed.scheme
+    formatted_creds['auth_host'] = auth_url_parsed.hostname
+    formatted_creds['credentials_host'] = auth_url_parsed.hostname
+    formatted_creds['auth_port'] = auth_url_parsed.port
+    formatted_creds['credentials_port'] = auth_url_parsed.port
+    formatted_creds['api_version'] = creds['version']
+    formatted_creds['credentials_password'] = creds['password']
+    formatted_creds['credentials_project'] = creds['project_name']
+    formatted_creds['credentials_user_domain_name'] = creds['user_domain_name']
+    formatted_creds['domain'] = creds['user_domain_name']
+    formatted_creds['credentials_project_domain_name'] = creds['project_domain_name']
+    formatted_creds['region'] = creds['region']
+
+    return formatted_creds
 
 
 def _load_creds():
