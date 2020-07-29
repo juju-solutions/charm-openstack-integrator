@@ -192,8 +192,8 @@ def _merge_if_set(dst, src):
 def _normalize_creds(creds_data):
     if 'endpoint' in creds_data:
         endpoint = creds_data['endpoint']
-        region = creds_data['region']
-        attrs = creds_data['credential']['attributes']
+        region = creds_data.get('region', '')
+        attrs = creds_data.get('credential', {}).get('attributes', {})
     else:
         attrs = creds_data
         endpoint = attrs.get('auth-url', '')
