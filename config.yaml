@@ -3,8 +3,8 @@ options:
     description: |
       The base64-encoded contents of a JSON file containing OpenStack credentials.
 
-      The credentials must contain the following keys: auth-url, username, password,
-      project-name, user-domain-name, and project-domain-name.
+      The credentials must contain the following keys: auth-url, region, username,
+      password, project-name, user-domain-name, and project-domain-name.
 
       It could also contain a base64-encoded CA certificate in endpoint-tls-ca key value.
 
