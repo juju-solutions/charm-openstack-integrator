@@ -1,3 +1,4 @@
+import binascii
 import json
 import re
 import os
@@ -81,8 +82,13 @@ def get_credentials():
                 _creds_data = b64decode(config['credentials']).decode('utf8')
                 _creds_data = json.loads(_creds_data)
                 _merge_if_set(creds_data, _normalize_creds(_creds_data))
-            except Exception as e:
-                if str(e).startswith('unsupported auth-type'):
+            except (ValueError,
+                    TypeError,
+                    binascii.Error,
+                    json.JSONDecodeError,
+                    UnicodeDecodeError) as e:
+                if isinstance(e, ValueError) and \
+                   str(e).startswith('unsupported auth-type'):
                     raise  # handled below
                 log_err('Invalid value for credentials config\n{}',
                         format_exc())
