@@ -356,12 +356,15 @@ class LoadBalancer:
         self.manage_secgrps = manage_secgrps
         self._key = 'created_lbs.{}'.format(self.name)
         self.sg_id = None
+        self.member_sg_id = None
         self.fip = None
         self.address = None
         self.members = set()
         self.is_created = False
-        self._try_load_cached_info()
         self._impl = self._get_impl()
+        # cache this since we access it multiple times
+        self.is_port_sec_enabled = self._impl.get_port_sec_enabled()
+        self._try_load_cached_info()
 
     def get_all(self):
         lbs = []
@@ -419,7 +422,7 @@ class LoadBalancer:
                 sg_id = self._impl.create_secgrp(self.name)
                 log('Created security group {} ({})', self.name, sg_id)
             self.sg_id = sg_id
-            if self._impl.get_port_sec_enabled():
+            if self.is_port_sec_enabled:
                 self._impl.set_port_secgrp(lb_info['vip_port_id'], sg_id)
                 log('Added security group {} ({}) to port {}',
                     self.name, sg_id, lb_info['vip_port_id'])
@@ -430,7 +433,7 @@ class LoadBalancer:
                 log_err('Unable to find default security group')
                 raise OpenStackLBError(action='create', exc=False)
             log('Using default security group ({})', sg_id)
-        if not self._find_matching_sg_rule(sg_id):
+        if not self._find_matching_sg_rule(sg_id, self.address, self.port):
             self._impl.create_sg_rule(sg_id, self.address, self.port)
             log('Added rule for {}:{} to security group {} ({})',
                 self.address, self.port, self.name, sg_id)
@@ -470,10 +473,8 @@ class LoadBalancer:
         if self.members:
             log('Found existing members: {}', self.members)
 
-        if self._impl.get_port_sec_enabled():
-            sg_id = self._impl.create_secgrp('lb-kubernetes-master')
-            subnet_cidr = self._impl.get_subnet_cidr(self.subnet)
-            self._impl.create_sg_rule(sg_id, subnet_cidr, 6443)
+        if self.is_port_sec_enabled:
+            self._create_member_sg()
 
         self._update_cached_info()
         self.is_created = True
@@ -497,9 +498,9 @@ class LoadBalancer:
         if not isinstance(self._impl, NeutronLBImpl):
             self._wait_not_pending(self._impl.show_pool)
 
-    def _find_matching_sg_rule(self, sg_id):
-        address = ip_address(self.address)
-        port = int(self.port)
+    def _find_matching_sg_rule(self, sg_id, address, port):
+        address = ip_address(address)
+        port = int(port)
         for rule in self._impl.list_sg_rules(sg_id):
             if rule['Port Range']:
                 port_min, port_max = rule['Port Range'].split(':')
@@ -543,11 +544,8 @@ class LoadBalancer:
             added_members = members - self.members
             for member in added_members:
                 self._impl.create_member(member)
-                if self._impl.get_port_sec_enabled():
-                    addr, _ = member
-                    port_id = self._impl.find_port(addr)
-                    sg_id = self._impl.find_secgrp('lb-kubernetes-master')
-                    self._impl.set_port_secgrp(port_id, sg_id)
+                if self.is_port_sec_enabled:
+                    self._add_member_sg(member)
                 log('Added member: {}', member)
                 self._wait_pool_not_pending()
         except subprocess.CalledProcessError:
@@ -555,6 +553,27 @@ class LoadBalancer:
 
         self.members = members
         self._update_cached_info()
+
+    def _create_member_sg(self):
+        member_sg_name = self.name + '-members'
+        member_sg_id = self._impl.find_secgrp(member_sg_name)
+        if member_sg_id:
+            log('Found existing security group {} ({})',
+                member_sg_name, member_sg_id)
+        else:
+            member_sg_id = self._impl.create_secgrp(member_sg_name)
+            log('Created security group {} ({})',
+                member_sg_name, member_sg_id)
+        self.member_sg_id = member_sg_id
+
+    def _add_member_sg(self, member):
+        addr, port = member
+        port_id = self._impl.find_port(addr)
+        self._impl.set_port_secgrp(port_id, self.member_sg_id)
+        if not self._find_matching_sg_rule(self.member_sg_id,
+                                           self.address, port):
+            self._impl.create_sg_rule(self.member_sg_id,
+                                      self.address, port)
 
     def delete(self):
         """
@@ -582,6 +601,12 @@ class LoadBalancer:
             self.fip = info['fip']
             self.address = info['address']
             self.members = {tuple(m) for m in info['members']}
+            self.member_sg_id = info.get('member_sg_id')
+            if self.member_sg_id is None and self.is_port_sec_enabled:
+                # handle upgrade from before the member SG was handled
+                self._create_member_sg()
+                for member in self.members:
+                    self._add_member_sg(member)
             self.is_created = True
 
     def _update_cached_info(self):
@@ -623,7 +648,7 @@ class BaseLBImpl:
                    '--ingress',
                    '--protocol', 'tcp',
                    '--remote-ip', address,
-                   '--dst-port', port,
+                   '--dst-port', str(port),
                    sg_id)
 
     def get_port_sec_enabled(self):
