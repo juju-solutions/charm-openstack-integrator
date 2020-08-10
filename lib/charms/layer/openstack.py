@@ -1,3 +1,4 @@
+import binascii
 import json
 import re
 import os
@@ -81,24 +82,42 @@ def get_credentials():
                 _creds_data = b64decode(config['credentials']).decode('utf8')
                 _creds_data = json.loads(_creds_data)
                 _merge_if_set(creds_data, _normalize_creds(_creds_data))
-            except Exception:
-                status.blocked('invalid value for credentials config')
+            except (ValueError,
+                    TypeError,
+                    binascii.Error,
+                    json.JSONDecodeError,
+                    UnicodeDecodeError) as e:
+                if isinstance(e, ValueError) and \
+                   str(e).startswith('unsupported auth-type'):
+                    raise  # handled below
+                log_err('Invalid value for credentials config\n{}',
+                        format_exc())
+                status.blocked('invalid value for credentials config: '
+                               '{}'.format(e))
                 return False
 
         # merge in individual config
         _merge_if_set(creds_data, _normalize_creds(config))
     except ValueError as e:
         if str(e).startswith('unsupported auth-type'):
+            log_err(str(e))
             status.blocked(str(e))
             return False
 
     if all(creds_data[k] for k in required_fields):
         _save_creds(creds_data)
         return True
-    else:
+    elif not any(creds_data[k] for k in required_fields):
         # no creds provided
         status.blocked('missing credentials; '
                        'grant with `juju trust` or set via config')
+        return False
+    else:
+        missing = [k for k in required_fields if not creds_data[k]]
+        s = 's' if len(missing) > 1 else ''
+        msg = 'missing required credential{}: {}'.format(s, ', '.join(missing))
+        log_err(msg)
+        status.blocked(msg)
         return False
 
 
@@ -179,12 +198,12 @@ def _merge_if_set(dst, src):
 def _normalize_creds(creds_data):
     if 'endpoint' in creds_data:
         endpoint = creds_data['endpoint']
-        region = creds_data['region']
-        attrs = creds_data['credential']['attributes']
+        region = creds_data.get('region', '')
+        attrs = creds_data.get('credential', {}).get('attributes', {})
     else:
         attrs = creds_data
-        endpoint = attrs['auth-url']
-        region = attrs['region']
+        endpoint = attrs.get('auth-url', '')
+        region = attrs.get('region', '')
 
     if attrs.get('auth-type') not in ('userpass', None):
         raise ValueError('unsupported auth-type in credentials: '
@@ -218,10 +237,10 @@ def _normalize_creds(creds_data):
     return dict(
         auth_url=endpoint,
         region=region,
-        username=attrs['username'],
-        password=attrs['password'],
-        user_domain_name=attrs['user-domain-name'],
-        project_domain_name=attrs['project-domain-name'],
+        username=attrs.get('username'),
+        password=attrs.get('password'),
+        user_domain_name=attrs.get('user-domain-name'),
+        project_domain_name=attrs.get('project-domain-name'),
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
         endpoint_tls_ca=ca_cert,
         version=_determine_version(attrs, endpoint),
@@ -288,13 +307,16 @@ def _determine_version(attrs, endpoint):
     if url_ver:
         return url_ver.group(1)
 
-    with urlopen(endpoint) as fp:
-        try:
+    try:
+        with urlopen(endpoint) as fp:
             info = json.loads(fp.read(600).decode('utf8'))
             return str(info['version']['id']).split('.')[0].lstrip('v')
-        except (json.JSONDecodeError, UnicodeDecodeError, KeyError) as e:
-            log_err('Failed to determine API version: {}', e)
-            return None
+    except (json.JSONDecodeError,
+            UnicodeDecodeError,
+            KeyError,
+            ValueError) as e:
+        log_err('Failed to determine API version: {}', e)
+        return None
 
 
 def _default_subnet(members):
