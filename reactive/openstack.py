@@ -40,6 +40,11 @@ def upgrade_charm():
     clear_flag('charm.openstack.creds.set')
 
 
+@hook('pre-series-upgrade')
+def pre_series_upgrade():
+    layer.status.blocked('Series upgrade in progress')
+
+
 @when_not('charm.openstack.creds.set')
 def get_creds():
     toggle_flag('charm.openstack.creds.set', layer.openstack.get_credentials())
@@ -48,6 +53,7 @@ def get_creds():
 @when_all('snap.installed.openstackclients',
           'charm.openstack.creds.set')
 @when_not('endpoint.clients.requests-pending')
+@when_not('upgrade.series.in-progress')
 def no_requests():
     layer.status.active('Ready')
 
@@ -57,6 +63,7 @@ def no_requests():
           'endpoint.clients.joined')
 @when_any('endpoint.clients.requests-pending',
           'config.changed')
+@when_not('upgrade.series.in-progress')
 def handle_requests():
     layer.status.maintenance('Granting integration requests')
     clients = endpoint_from_name('clients')
@@ -100,6 +107,7 @@ def handle_requests():
 
 @when_all('charm.openstack.creds.set',
           'endpoint.loadbalancer.joined')
+@when_not('upgrade.series.in-progress')
 def create_or_update_loadbalancers():
     layer.status.maintenance('Managing load balancers')
     lb_clients = endpoint_from_name('loadbalancer')
