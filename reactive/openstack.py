@@ -106,7 +106,8 @@ def handle_requests():
 
 
 @when_all('charm.openstack.creds.set',
-          'endpoint.credentials.joined')
+          'credentials.connected')
+@when_not('upgrade.series.in-progress')
 def write_credentials():
     credentials = endpoint_from_name('credentials')
     reformatted_creds = layer.openstack.get_creds_and_reformat()
