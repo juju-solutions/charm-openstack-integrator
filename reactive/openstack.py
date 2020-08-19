@@ -113,6 +113,7 @@ def write_credentials():
     reformatted_creds = layer.openstack.get_creds_and_reformat()
     credentials.push_into_relation(reformatted_creds)
 
+
 @when_all('charm.openstack.creds.set',
           'endpoint.loadbalancer.joined')
 @when_not('upgrade.series.in-progress')
