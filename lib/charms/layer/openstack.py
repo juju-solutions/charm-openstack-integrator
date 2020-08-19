@@ -254,9 +254,7 @@ def _save_creds(creds_data):
 
 def get_creds_and_reformat():
     creds = _load_creds()
-
     formatted_creds = {}
-
     auth_url_parsed = urlparse(creds['auth_url'])
 
     formatted_creds['auth_protocol'] = auth_url_parsed.scheme
@@ -275,7 +273,6 @@ def get_creds_and_reformat():
     formatted_creds['credentials_project_domain_name'] = creds['project_domain_name']
     formatted_creds['region'] = creds['region']
     formatted_creds['endpoint_tls_ca'] = creds['endpoint_tls_ca']
-
     return formatted_creds
 
 
