@@ -5,6 +5,7 @@ includes:
   - 'layer:snap'
   - 'interface:openstack-integration'
   - 'interface:public-address'
+  - 'interface:keystone-credentials'
 options:
   basic:
     use_venv: true
