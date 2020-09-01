@@ -291,7 +291,7 @@ def test_create_recover(impl):
     ]
     impl.list_members.return_value = ['members']
     lb.create()
-    assert lb.sg_id == 'sg_id'
+    assert lb.sg_id is None
     assert lb.fip == '4.4.4.4'
     assert lb.address == '1.1.1.1'
     assert lb.members == ['members']

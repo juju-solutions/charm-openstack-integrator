@@ -443,22 +443,29 @@ class LoadBalancer:
             else:
                 sg_id = self._impl.create_secgrp(self.name)
                 log('Created security group {} ({})', self.name, sg_id)
-            self.sg_id = sg_id
-            if self.is_port_sec_enabled:
-                self._impl.set_port_secgrp(lb_info['vip_port_id'], sg_id)
-                log('Added security group {} ({}) to port {}',
-                    self.name, sg_id, lb_info['vip_port_id'])
-                self._wait_lb_not_pending()
+                self.sg_id = sg_id
+                if self.is_port_sec_enabled:
+                    self._impl.set_port_secgrp(lb_info['vip_port_id'], sg_id)
+                    log('Added security group {} ({}) to port {}',
+                        self.name, sg_id, lb_info['vip_port_id'])
+                    self._wait_lb_not_pending()
         else:
             sg_id = self._impl.find_secgrp('default')
             if not sg_id:
                 log_err('Unable to find default security group')
                 raise OpenStackLBError(action='create', exc=False)
             log('Using default security group ({})', sg_id)
+
         if not self._find_matching_sg_rule(sg_id, self.address, self.port):
-            self._impl.create_sg_rule(sg_id, self.address, self.port)
-            log('Added rule for {}:{} to security group {} ({})',
-                self.address, self.port, self.name, sg_id)
+            # NOTE: we can only access/modify the SG if it was created by us.
+            # If using Octavia the SG will have been created by Octavia and
+            # therefore only an admin or Octavia itself can access it.
+            if self.sg_id:
+                self._impl.create_sg_rule(sg_id, self.address, self.port)
+                log('Added rule for {}:{} to security group {} ({})',
+                    self.address, self.port, self.name, sg_id)
+            else:
+                log('Unable to modify SG created by Octavia.')
         else:
             log('Found matching rule for {}:{} on security group {} ({})',
                 self.address, self.port, self.name, sg_id)
