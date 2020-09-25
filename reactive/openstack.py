@@ -111,7 +111,7 @@ def handle_requests():
 def write_credentials():
     credentials = endpoint_from_name('credentials')
     reformatted_creds = layer.openstack.get_creds_and_reformat()
-    credentials.push_into_relation(reformatted_creds)
+    credentials.expose_credentials(reformatted_creds)
 
 
 @when_all('charm.openstack.creds.set',
