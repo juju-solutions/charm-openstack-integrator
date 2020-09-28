@@ -264,15 +264,6 @@ def get_creds_and_reformat():
     formatted_creds['auth_port'] = auth_url_parsed.port
     formatted_creds['credentials_port'] = auth_url_parsed.port
     formatted_creds['api_version'] = creds['version']
-    formatted_creds['credentials_username'] = creds['username']
-    formatted_creds['credentials_password'] = creds['password']
-    formatted_creds['credentials_project'] = creds['project_name']
-    formatted_creds['credentials_project_id'] = '1'
-    formatted_creds['credentials_user_domain_name'] = creds['user_domain_name']
-    formatted_creds['domain'] = creds['user_domain_name']
-    formatted_creds['credentials_project_domain_name'] = creds['project_domain_name']
-    formatted_creds['region'] = creds['region']
-    formatted_creds['endpoint_tls_ca'] = creds['endpoint_tls_ca']
     return formatted_creds
 
 
