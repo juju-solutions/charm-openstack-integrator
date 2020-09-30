@@ -106,6 +106,15 @@ def handle_requests():
 
 
 @when_all('charm.openstack.creds.set',
+          'credentials.connected')
+@when_not('upgrade.series.in-progress')
+def write_credentials():
+    credentials = endpoint_from_name('credentials')
+    reformatted_creds = layer.openstack.get_creds_and_reformat()
+    credentials.expose_credentials(reformatted_creds)
+
+
+@when_all('charm.openstack.creds.set',
           'endpoint.loadbalancer.joined')
 @when_not('upgrade.series.in-progress')
 def create_or_update_loadbalancers():
