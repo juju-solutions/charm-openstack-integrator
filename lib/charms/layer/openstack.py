@@ -726,7 +726,8 @@ class BaseLBImpl:
                           'value', yaml_output=False)
 
     def get_subnet_cidr(self, name):
-        return _openstack('subnet', 'show', name, '-c', 'cidr', '-f', 'value')
+        return _openstack('subnet', 'show', name, '-c', 'cidr', '-f', 'value',
+                          yaml_output=False)
 
     def list_loadbalancers(self):
         raise NotImplementedError()
