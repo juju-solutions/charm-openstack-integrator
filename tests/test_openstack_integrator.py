@@ -360,7 +360,7 @@ def test_find(impl, log_err):
     log_err.assert_called_with('Multiple {} found: {}', 'foo', 'lb')
 
 
-def test_update_members(impl):
+def test_update_members(impl, _openstack):
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
     lb.address = '1.1.1.1'
     impl.show_pool.return_value = {'provisioning_status': 'ACTIVE'}
