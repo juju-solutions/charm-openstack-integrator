@@ -614,7 +614,12 @@ class LoadBalancer:
     def _add_member_sg(self, member):
         addr, port = member
         port_id = self._impl.find_port(addr)
-        self._impl.set_port_secgrp(port_id, self.member_sg_id)
+        if self.member_sg_id not in _openstack(
+            'port',
+            'show',
+            port_id
+        )['security_group_ids']:
+            self._impl.set_port_secgrp(port_id, self.member_sg_id)
         if not self._find_matching_sg_rule(self.member_sg_id,
                                            self.address, port):
             self._impl.create_sg_rule(self.member_sg_id,
