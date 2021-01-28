@@ -1,6 +1,3 @@
-
-Viewed
-@@ -0,0 +1,36 @@
 # Contributor Guide
 
 This Juju charm is open source ([Apache License 2.0](./LICENSE)) and we actively seek any community contibutions
