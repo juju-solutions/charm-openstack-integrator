@@ -17,6 +17,8 @@ from charmhelpers.core import hookenv
 from charmhelpers.core.unitdata import kv
 from charmhelpers.core.templating import render
 
+import nrpe_helpers
+
 from charms.layer import status
 from charms.layer.nagios import NAGIOS_PLUGINS_DIR
 
@@ -933,22 +935,36 @@ def remove_nagios_openstack_cnf():
         os.remove(OPENSTACK_NAGIOS_CREDENTIAL_FILE)
 
 
-def create_nrpe_check_cmd(
-        script, interface, ids, skip_ids, check_all):
-    """Crete cmd command for checking OpenStack IDs/names."""
-    ids = [i for i in (ids or "").split(",") if i]  # remove empty string
-    skip_ids = [i for i in (skip_ids or "").split(",") if i]
-    cmd = "{} {} -c {}".format(os.path.join(NAGIOS_PLUGINS_DIR, script),
-                               interface, OPENSTACK_NAGIOS_CREDENTIAL_FILE)
+def create_nrpe_check_cmd(check):
+    """Crete cmd command for checking OpenStack IDs.
+
+    :param check: Definition NRPE check for OpenStack interface
+    :type check: nrpe_helpers.NrpeCheck
+    :returns: NRPE check CMD
+    :rtype: string
+    :raise ValueError: if the IDs is set to "all" and is not supported
+                       if skip IDs are set, but without IDs set to "all"
+    """
+    value_ids = config.get(check.config) or ""
+    value_skip_ids = config.get(check.config_skip) or ""
+    ids = [i for i in value_ids.split(",") if i]  # remove empty string
+    skip_ids = [i for i in value_skip_ids.split(",") if i]
+    print("\n\n", config, "\n", check, "\n\n")
+    script = os.path.join(
+        NAGIOS_PLUGINS_DIR, nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
+    cmd = "{} {} -c {}".format(
+        script, check.interface, OPENSTACK_NAGIOS_CREDENTIAL_FILE)
 
     if "all" in ids:
-        if not check_all:
-            raise ValueError("value 'all' is not supported")
+        if not check.all:
+            raise ValueError("value \"all\" is not supported with "
+                             "\"{}\"".format(check.config))
         cmd += " --all"
         cmd += "".join([" --skip-id {}".format(i) for i in skip_ids])
     elif skip_ids:
-        raise ValueError("skip-ids option is not allowed with ids option "
-                         "not set to `all`")
+        raise ValueError("\"{}\" option is not allowed with \"{}\" option "
+                         "not set to \"all\"".format(check.config_skip,
+                                                     check.config))
     else:
         cmd += "".join([" --id {}".format(i) for i in ids])
 

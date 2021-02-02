@@ -9,33 +9,14 @@ from unittest import mock
 import subprocess
 from urllib.request import urlopen
 from time import sleep
-import charms.layer
 
-from charms.unit_test import patch_fixture
+import charms.layer
+import nrpe_helpers
+
 import reactive.openstack
 
 openstack = charms.layer.openstack
 status = charms.layer.status
-
-log_err = patch_fixture('charms.layer.openstack.log_err')
-_load_creds = patch_fixture('charms.layer.openstack._load_creds')
-detect_octavia = patch_fixture('charms.layer.openstack.detect_octavia')
-_run_with_creds = patch_fixture('charms.layer.openstack._run_with_creds')
-_openstack = patch_fixture('charms.layer.openstack._openstack')
-_neutron = patch_fixture('charms.layer.openstack._neutron')
-LoadBalancerClient = patch_fixture('charms.layer.openstack.LoadBalancerClient')
-OctaviaLBClient = patch_fixture('charms.layer.openstack.OctaviaLBClient')
-NeutronLBClient = patch_fixture('charms.layer.openstack.NeutronLBClient')
-_default_subnet = patch_fixture('charms.layer.openstack._default_subnet')
-kv = patch_fixture('charms.layer.openstack.kv')
-config = patch_fixture('charms.layer.openstack.config', {})
-get_port_sec_enabled = patch_fixture('charms.layer.openstack.BaseLBImpl'
-                                     '.get_port_sec_enabled',
-                                     patch_opts={'return_value': True},
-                                     fixture_opts={'autouse': True})
-_normalize_creds = patch_fixture('charms.layer.openstack._normalize_creds')
-_save_creds = patch_fixture('charms.layer.openstack._save_creds')
-_determine_version = patch_fixture('charms.layer.openstack._determine_version')
 
 
 class MockCalledProcessError(Exception):
@@ -613,10 +594,16 @@ def test_normalize_creds(_determine_version, log_err):
     ("all", "1,2", True, "--all --skip-id 1 --skip-id 2"),
     ("all", "1,2", True, "--all --skip-id 1 --skip-id 2"),
 ])
-def test_create_nrpe_check_cmd(ids, skip_ids, check_all, exp_cmd):
+def test_create_nrpe_check_cmd(
+        ids, skip_ids, check_all, exp_cmd, openstack_config):
     """Test creating cmd for NRPE check."""
-    cmd = openstack.create_nrpe_check_cmd("check_openstack.py", "interface",
-                                          ids, skip_ids, check_all)
+    openstack_config.get.side_effect = lambda x: {
+        "nrpe_check_cmd-ids": ids, "nrpe_check_cmd-skip-ids": skip_ids,
+    }.get(x)
+    check = nrpe_helpers.NrpeCheck("test", "test", "nrpe_check_cmd-ids",
+                                   "nrpe_check_cmd-skip-ids", check_all)
+
+    cmd = openstack.create_nrpe_check_cmd(check)
 
     assert exp_cmd in cmd
 
@@ -625,8 +612,14 @@ def test_create_nrpe_check_cmd(ids, skip_ids, check_all, exp_cmd):
     ("all", "", False),
     ("1,2", "1", True),
 ])
-def test_create_nrpe_check_cmd_error(ids, skip_ids, check_all):
+def test_create_nrpe_check_cmd_error(
+        ids, skip_ids, check_all, openstack_config):
     """Test creating cmd for NRPE check."""
+    openstack_config.get.side_effect = lambda x: {
+        "nrpe_check_cmd-ids": ids, "nrpe_check_cmd-skip-ids": skip_ids,
+    }.get(x)
+    check = nrpe_helpers.NrpeCheck("test", "test", "nrpe_check_cmd-ids",
+                                   "nrpe_check_cmd-skip-ids", check_all)
+
     with pytest.raises(ValueError):
-        openstack.create_nrpe_check_cmd("check_openstack.py", "interface",
-                                        ids, skip_ids, check_all)
+        openstack.create_nrpe_check_cmd(check)

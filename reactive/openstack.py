@@ -166,10 +166,7 @@ def update_nrpe_config():
         nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
 
     for check in nrpe_helpers.NRPE_CHECKS:
-        cmd = layer.openstack.create_nrpe_check_cmd(
-            nrpe_helpers.NRPE_OPENSTACK_INTERFACE, check.interface,
-            config.get(check.config), config.get(check.config_skip), check.all)
-
+        cmd = layer.openstack.create_nrpe_check_cmd(check)
         if ((config.changed(check.config) or config.changed(check.config_skip))
                 and config.get(check.config)):
             nrpe_setup.add_check(
@@ -198,9 +195,7 @@ def remove_nrpe_config():
     nrpe_setup = nrpe.NRPE(hostname=hostname)
 
     for check in nrpe_helpers.NRPE_CHECKS:
-        cmd = layer.openstack.create_nrpe_check_cmd(
-            nrpe_helpers.NRPE_OPENSTACK_INTERFACE, check.interface,
-            config.get(check.config), config.get(check.config_skip), check.all)
+        cmd = layer.openstack.create_nrpe_check_cmd(check)
 
         if config.get(check.config):
             nrpe_setup.remove_check(

@@ -141,7 +141,7 @@ options:
       List of OpenStack networks IDs to be checked by NRPE check. All values
       must be separated by a comma or 'all' can be entered.
     type: string
-    default: ""
+    default: "all"
   nrpe-skip-network-ids:
     description: |
       List of OpenStack networks IDs to be skipped by the NRPE check.
@@ -161,7 +161,7 @@ options:
       List of OpenStack ports IDs to be checked by NRPE check. All values
       must be separated by a comma or 'all' can be entered.
     type: string
-    default: ""
+    default: "all"
   nrpe-skip-port-ids:
     description: |
       List of OpenStack ports IDs to be skipped by the NRPE check.
@@ -175,7 +175,7 @@ options:
       List of OpenStack floating ips IDs to be checked by NRPE check. All
       values must be separated by a comma or 'all' can be entered.
     type: string
-    default: ""
+    default: "all"
   nrpe-skip-floating-ip-ids:
     description: |
       List of OpenStack floating ips IDs to be skipped by the NRPE check.
@@ -189,7 +189,7 @@ options:
       List of OpenStack servers IDs to be checked by NRPE check. All values
       must be separated by a comma or 'all' can be entered.
     type: string
-    default: ""
+    default: "all"
   nrpe-skip-server-ids:
     description: |
       List of OpenStack servers IDs to be skipped by the NRPE check.

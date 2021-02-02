@@ -39,8 +39,7 @@ def test_update_nrpe_config(mock_nrpe, mock_create_nrpe_check_cmd,
         check_cmd="test cmd"
     )
     assert mock_nrpe_setup.remove_check.call_count == 7
-    mock_create_nrpe_check_cmd.assert_any_call(
-        nrpe_helpers.NRPE_OPENSTACK_INTERFACE, "subnet", "1234", None, False)
+    mock_create_nrpe_check_cmd.assert_any_call(nrpe_helpers.NRPE_CHECKS[0])
     mock_nrpe_setup.reset_mock()
     mock_create_nrpe_check_cmd.reset_mock()
 
@@ -52,8 +51,7 @@ def test_update_nrpe_config(mock_nrpe, mock_create_nrpe_check_cmd,
         description="Check servers: 1,2,3",
         check_cmd="test cmd"
     )
-    mock_create_nrpe_check_cmd.assert_any_call(
-        nrpe_helpers.NRPE_OPENSTACK_INTERFACE, "server", "1,2,3", None, True)
+    mock_create_nrpe_check_cmd.assert_any_call(nrpe_helpers.NRPE_CHECKS[6])
     assert mock_nrpe_setup.remove_check.call_count == 7
     mock_nrpe_setup.reset_mock()
     mock_create_nrpe_check_cmd.reset_mock()
@@ -67,8 +65,7 @@ def test_update_nrpe_config(mock_nrpe, mock_create_nrpe_check_cmd,
         description="Check servers: all",
         check_cmd="test cmd"
     )
-    mock_create_nrpe_check_cmd.assert_any_call(
-        nrpe_helpers.NRPE_OPENSTACK_INTERFACE, "server", "all", "1,2", True)
+    mock_create_nrpe_check_cmd.assert_any_call(nrpe_helpers.NRPE_CHECKS[6])
     assert mock_nrpe_setup.remove_check.call_count == 7
     mock_nrpe_setup.reset_mock()
     mock_create_nrpe_check_cmd.reset_mock()
