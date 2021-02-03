@@ -949,7 +949,6 @@ def create_nrpe_check_cmd(check):
     value_skip_ids = config.get(check.config_skip) or ""
     ids = [i for i in value_ids.split(",") if i]  # remove empty string
     skip_ids = [i for i in value_skip_ids.split(",") if i]
-    print("\n\n", config, "\n", check, "\n\n")
     script = os.path.join(
         NAGIOS_PLUGINS_DIR, nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
     cmd = "{} {} -c {}".format(

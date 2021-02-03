@@ -176,7 +176,7 @@ def update_nrpe_config():
                 check_cmd=cmd)
             hookenv.log("NRPE check {} was added".format(check.name),
                         level=hookenv.DEBUG)
-        elif not config.get(check.config):
+        elif config.changed(check.config) and not config.get(check.config):
             nrpe_setup.remove_check(shortname=check.name, description="",
                                     check_cmd=cmd)
             hookenv.log("NRPE check {} was removed".format(check.name),
