@@ -146,8 +146,9 @@ def cleanup():
 @when("nrpe-external-master.available")
 @when_not("nrpe-external-master.initial-config")
 def initial_nrpe_config():
+    update_nrpe_config(initialized=True)
+    hookenv.log("NRPE checks were initialized", level=hookenv.INFO)
     set_flag("nrpe-external-master.initial-config")
-    update_nrpe_config()
 
 
 @when("nrpe-external-master.available")
@@ -155,7 +156,7 @@ def initial_nrpe_config():
           "config.changed.nagios_servicegroups",
           "nrpe-external-master.reconfigure",
           *nrpe_helpers.NRPE_CONFIG_FLAGS_CHANGED)
-def update_nrpe_config():
+def update_nrpe_config(initialized=False):
     """Set up all NRPE checks."""
     config = hookenv.config()
     hostname = nrpe.get_nagios_hostname()
@@ -167,8 +168,9 @@ def update_nrpe_config():
 
     for check in nrpe_helpers.NRPE_CHECKS:
         cmd = layer.openstack.create_nrpe_check_cmd(check)
-        if ((config.changed(check.config) or config.changed(check.config_skip))
-                and config.get(check.config)):
+        if (config.get(check.config) and (config.changed(check.config) or
+                                          config.changed(check.config_skip) or
+                                          initialized)):
             nrpe_setup.add_check(
                 shortname=check.name,
                 description="Check {}s: {}".format(check.interface,
@@ -176,7 +178,7 @@ def update_nrpe_config():
                 check_cmd=cmd)
             hookenv.log("NRPE check {} was added".format(check.name),
                         level=hookenv.DEBUG)
-        elif config.changed(check.config) and not config.get(check.config):
+        elif not config.get(check.config) and config.changed(check.config):
             nrpe_setup.remove_check(shortname=check.name, description="",
                                     check_cmd=cmd)
             hookenv.log("NRPE check {} was removed".format(check.name),
@@ -209,4 +211,5 @@ def remove_nrpe_config():
     nrpe_setup.write()
     layer.nagios.remove_nagios_plugin(nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
     layer.openstack.remove_nagios_openstack_cnf()
+    clear_flag("nrpe-external-master.initial-config")
     hookenv.log("NRPE checks was removed.", level=hookenv.DEBUG)

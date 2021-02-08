@@ -49,12 +49,13 @@ def _parse_arguments():
                         help="path to OpenStack credential cnf file")
     parser.add_argument("--all", action="store_true", help="check all")
     parser.add_argument("-i", "--id", action="append", type=str, default=[],
-                        help="check specific id")
+                        help="check specific id (can be used multiple times)")
     parser.add_argument("--skip-id", action="append", type=str, default=[],
-                        help="skip specific id")
+                        help="skip specific id (can be used multiple times)")
     parser.add_argument("--select", action="append", type=str, default=[],
-                        help="use `--select` together with `--all`"
-                             "(e.g. --select subnet=<id>)")
+                        help="use `--select` together with `--all` "
+                             "(e.g. --select subnet=<id>) "
+                             "(can be used multiple times)")
     args = parser.parse_args()
 
     if args.interface not in INTERFACE:
@@ -64,7 +65,7 @@ def _parse_arguments():
         parser.error("flag `--all` is not supported with "
                      "interface {}".format(args.interface))
     if args.all and args.id:
-        parser.error("`--all` and `--id` couldn't be given together")
+        parser.error("`--all` and `--id` can't be given together")
     elif not args.all and not args.id:
         parser.error("at least one of '--all/--id' parameters must be entered")
     elif not args.all and args.skip_id:

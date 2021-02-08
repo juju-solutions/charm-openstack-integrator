@@ -5,15 +5,29 @@ import pytest
 
 from reactive import openstack
 from charms.layer.nagios import NAGIOS_PLUGINS_DIR
-from charms.reactive import is_flag_set
+from charms.reactive import clear_flag, is_flag_set
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.core.hookenv import config
 
 
 @mock.patch("reactive.openstack.update_nrpe_config")
 def test_initial_nrpe_config(mock_update_nrpe_config):
+    clear_flag("nrpe-external-master.initial-config")
     openstack.initial_nrpe_config()
     assert is_flag_set("nrpe-external-master.initial-config")
+    mock_update_nrpe_config.assert_called_once()
+
+
+@mock.patch("reactive.openstack.update_nrpe_config")
+def test_initial_nrpe_config_failed(mock_update_nrpe_config):
+    def raise_error():
+        raise Exception("test error")
+    mock_update_nrpe_config.side_effect = raise_error
+    clear_flag("nrpe-external-master.initial-config")
+
+    with pytest.raises(Exception):
+        openstack.initial_nrpe_config()
+    assert not is_flag_set("nrpe-external-master.initial-config")
     mock_update_nrpe_config.assert_called_once()
 
 
