@@ -14,12 +14,12 @@ please visit the [official Charmed Kubernetes docs](https://www.ubuntu.com/kuber
 This charm uses NRPE checks that are able to monitor servers, networks, subnets, floating-ips, security-groups and
 ports. These checks can be set through configuration using the "nrpe-<interface_type>-ids" (e.g. "nrpe-server-ids")
 option to monitor specific interfaces defined by IDs. The "nrpe-<interface_type>-ids" option could be defined as "all",
-however it is only allowed for servers networks, floating-ips and ports. Along with option "nrpe-<interface_type>-ids"
-set to value "all" it's possible to used "nrpe-skip-<interface_type>-ids" to set up interfaces, which will be skipped.
+however it is only allowed for servers, networks, floating-ips and ports. Along with option "nrpe-<interface_type>-ids"
+set to value "all", it's possible to use "nrpe-skip-<interface_type>-ids" to set up interfaces, which will be skipped.
 
-The script itself to check the OpenStack interface also supports the possibility to use the select parameter,
-which serves as a filter. (`--select name=data-port` can be used to filter out ports named "data-port")
-However this option is not configurable through the configuration.
+The NRPE script implements the select parameter for ports (--select key=value), which can help filter by the value
+of an interface property (e.g. --select name=data-port). However, this option is not configurable via Juju, hence it
+remains unsupported in the charm.
 
 
 [interface]: https://github.com/juju-solutions/interface-openstack-integration
