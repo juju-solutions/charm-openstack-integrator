@@ -702,9 +702,11 @@ class BaseLBImpl:
                    sg_id)
 
     def get_port_sec_enabled(self):
-        subnet_info = _openstack('subnet', 'show', self.subnet)
-        network_info = _openstack('network', 'show', subnet_info['network_id'])
-        return network_info['port_security_enabled']
+        if self.subnet:
+            subnet_info = _openstack('subnet', 'show', self.subnet)
+            network_info = _openstack('network', 'show',
+                                      subnet_info['network_id'])
+            return network_info['port_security_enabled']
 
     def set_port_secgrp(self, port_id, sg_id):
         # nb: can't use _openstack() because the command
