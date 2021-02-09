@@ -125,7 +125,7 @@ def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf):
     openstack.remove_nrpe_config()
     mock_nrpe_setup.remove_check.assert_called_once_with(
         shortname="openstack_servers", description="",
-        chech_cmd="/test/check_openstack_interface.py server "
+        check_cmd="/test/check_openstack_interface.py server "
                   "-c /etc/nagios/openstack.cnf --id 1 --id 2 --id 3"
     )
     mock_remove_nagios_openstack_cnf.assert_called_once_with()

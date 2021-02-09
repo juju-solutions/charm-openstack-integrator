@@ -203,7 +203,7 @@ def remove_nrpe_config():
             nrpe_setup.remove_check(
                 shortname=check.name,
                 description="",
-                chech_cmd=cmd
+                check_cmd=cmd
             )
             hookenv.log("NRPE check {} was removed".format(check.name),
                         level=hookenv.DEBUG)
