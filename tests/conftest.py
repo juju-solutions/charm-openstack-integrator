@@ -23,7 +23,7 @@ OctaviaLBClient = patch_fixture('charms.layer.openstack.OctaviaLBClient')
 NeutronLBClient = patch_fixture('charms.layer.openstack.NeutronLBClient')
 _default_subnet = patch_fixture('charms.layer.openstack._default_subnet')
 kv = patch_fixture('charms.layer.openstack.kv')
-openstack_config = patch_fixture('charms.layer.openstack.config')
+config = patch_fixture('charms.layer.openstack.config')
 get_port_sec_enabled = patch_fixture('charms.layer.openstack.BaseLBImpl'
                                      '.get_port_sec_enabled',
                                      patch_opts={'return_value': True},

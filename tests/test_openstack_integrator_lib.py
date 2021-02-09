@@ -11,7 +11,6 @@ from urllib.request import urlopen
 from time import sleep
 
 import charms.layer
-import nrpe_helpers
 
 import reactive.openstack
 
@@ -587,39 +586,3 @@ def test_normalize_creds(_determine_version, log_err):
 
     attrs['endpoint-tls-ca'] = attrs.pop('cacertificates')[0]
     assert openstack._normalize_creds(attrs) == expected
-
-
-@pytest.mark.parametrize("ids,skip_ids,check_all,exp_cmd", [
-    ("1,2", "", False, "--id 1 --id 2"),
-    ("all", "1,2", True, "--all --skip-id 1 --skip-id 2"),
-    ("all", "1,2", True, "--all --skip-id 1 --skip-id 2"),
-])
-def test_create_nrpe_check_cmd(
-        ids, skip_ids, check_all, exp_cmd, openstack_config):
-    """Test creating cmd for NRPE check."""
-    openstack_config.get.side_effect = lambda x: {
-        "nrpe_check_cmd-ids": ids, "nrpe_check_cmd-skip-ids": skip_ids,
-    }.get(x)
-    check = nrpe_helpers.NrpeCheck("test", "test", "nrpe_check_cmd-ids",
-                                   "nrpe_check_cmd-skip-ids", check_all)
-
-    cmd = openstack.create_nrpe_check_cmd(check)
-
-    assert exp_cmd in cmd
-
-
-@pytest.mark.parametrize("ids,skip_ids,check_all", [
-    ("all", "", False),
-    ("1,2", "1", True),
-])
-def test_create_nrpe_check_cmd_error(
-        ids, skip_ids, check_all, openstack_config):
-    """Test creating cmd for NRPE check."""
-    openstack_config.get.side_effect = lambda x: {
-        "nrpe_check_cmd-ids": ids, "nrpe_check_cmd-skip-ids": skip_ids,
-    }.get(x)
-    check = nrpe_helpers.NrpeCheck("test", "test", "nrpe_check_cmd-ids",
-                                   "nrpe_check_cmd-skip-ids", check_all)
-
-    with pytest.raises(ValueError):
-        openstack.create_nrpe_check_cmd(check)

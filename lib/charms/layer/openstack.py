@@ -15,19 +15,14 @@ import yaml
 
 from charmhelpers.core import hookenv
 from charmhelpers.core.unitdata import kv
-from charmhelpers.core.templating import render
-
-import nrpe_helpers
 
 from charms.layer import status
-from charms.layer.nagios import NAGIOS_PLUGINS_DIR
 
 
 # When debugging hooks, for some reason HOME is set to /home/ubuntu, whereas
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
 
-OPENSTACK_NAGIOS_CREDENTIAL_FILE = "/etc/nagios/openstack.cnf"
 CA_CERT_FILE = Path('/etc/openstack-integrator/ca.crt')
 MODEL_UUID = os.environ['JUJU_MODEL_UUID']
 MODEL_SHORT_ID = MODEL_UUID.split('-')[-1]
@@ -276,7 +271,7 @@ def _load_creds():
     return kv().get('charm.openstack.full-creds')
 
 
-def _get_creds_env(creds):
+def get_creds_env(creds):
     """Get environment variables from credentials.
 
     :returns: dictionary contain all environment variables parsed from
@@ -309,7 +304,7 @@ def _get_creds_env(creds):
 
 def _run_with_creds(*args):
     creds = _load_creds()
-    env = _get_creds_env(creds)
+    env = get_creds_env(creds)
     result = subprocess.run(args,
                             env=env,
                             check=True,
@@ -918,53 +913,3 @@ class NeutronLBImpl(BaseLBImpl):
     def delete_member(self, member):
         addr, _ = member
         _neutron('lbaas-member-delete', addr, self.name)
-
-
-def write_nagios_openstack_cnf():
-    """Create a OpenStack configuration file with nagios user credentials."""
-    creds = _load_creds()
-    env = _get_creds_env(creds)
-    render("nagios-openstack.cnf", OPENSTACK_NAGIOS_CREDENTIAL_FILE, env,
-           owner="nagios", group="nagios", perms=0o640)
-    return OPENSTACK_NAGIOS_CREDENTIAL_FILE
-
-
-def remove_nagios_openstack_cnf():
-    """Remove a OpenStack configuration file with nagios user credentials."""
-    if os.path.exists(OPENSTACK_NAGIOS_CREDENTIAL_FILE):
-        os.remove(OPENSTACK_NAGIOS_CREDENTIAL_FILE)
-
-
-def create_nrpe_check_cmd(check):
-    """Crete cmd command for checking OpenStack IDs.
-
-    :param check: Definition NRPE check for OpenStack interface
-    :type check: nrpe_helpers.NrpeCheck
-    :returns: NRPE check CMD
-    :rtype: string
-    :raise ValueError: if the IDs is set to "all" and is not supported
-                       if skip IDs are set, but without IDs set to "all"
-    """
-    value_ids = config.get(check.config) or ""
-    value_skip_ids = config.get(check.config_skip) or ""
-    ids = [i for i in value_ids.split(",") if i]  # remove empty string
-    skip_ids = [i for i in value_skip_ids.split(",") if i]
-    script = os.path.join(
-        NAGIOS_PLUGINS_DIR, nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
-    cmd = "{} {} -c {}".format(
-        script, check.interface, OPENSTACK_NAGIOS_CREDENTIAL_FILE)
-
-    if "all" in ids:
-        if not check.all:
-            raise ValueError("value \"all\" is not supported with "
-                             "\"{}\"".format(check.config))
-        cmd += " --all"
-        cmd += "".join([" --skip-id {}".format(i) for i in skip_ids])
-    elif skip_ids:
-        raise ValueError("\"{}\" option is not allowed with \"{}\" option "
-                         "not set to \"all\"".format(check.config_skip,
-                                                     check.config))
-    else:
-        cmd += "".join([" --id {}".format(i) for i in ids])
-
-    return cmd
