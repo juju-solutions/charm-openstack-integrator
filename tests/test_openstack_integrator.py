@@ -182,7 +182,7 @@ def test_get_or_create(create, cms, ams, kv):
     assert lb.algorithm == 'alg'
     assert lb.fip_net is None
     assert lb.manage_secgrps is False
-    assert lb._key == 'created_lbs.openstack-integrator-1234-app'
+    assert lb.key == 'created_lbs.openstack-integrator-1234-app'
     assert lb.sg_id == 'sg_id'
     assert lb.member_sg_id == 'member_sg_id'
     assert lb.fip == 'fip'
@@ -218,7 +218,6 @@ def test_create_new(impl, log_err):
     openstack.kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
     assert not lb.is_created
-    lb.name = 'name'
     impl.list_loadbalancers.return_value = []
     impl.create_loadbalancer.return_value = {'id': '1234',
                                              'vip_address': '1.1.1.1',
@@ -250,7 +249,8 @@ def test_create_new(impl, log_err):
 
     impl.find_secgrp.side_effect = ['sg_id', None]
     lb.create()
-    impl.create_secgrp.assert_called_with('name-members')
+    impl.create_secgrp.assert_called_with(
+        'openstack-integrator-1234-app-members')
 
     impl.find_secgrp.side_effect = None
     impl.find_secgrp.return_value = None
@@ -266,7 +266,8 @@ def test_create_new(impl, log_err):
     lb.create()
     assert lb.sg_id == 'sg_id'
     impl.create_secgrp.assert_has_calls([
-        mock.call('name'), mock.call('name-members')])
+        mock.call('openstack-integrator-1234-app'),
+        mock.call('openstack-integrator-1234-app-members')])
     impl.set_port_secgrp.assert_called_with('4321', 'sg_id')
     impl.create_fip.assert_called_with('1.1.1.1', '4321')
 
@@ -274,8 +275,8 @@ def test_create_new(impl, log_err):
 def test_create_recover(impl):
     openstack.kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', 'net', True)
-    lb.name = 'name'
-    impl.list_loadbalancers.return_value = [{'name': 'name'}]
+    impl.list_loadbalancers.return_value = [
+        {'name': 'openstack-integrator-1234-app'}]
     impl.show_loadbalancer.return_value = {'id': '2345',
                                            'provisioning_status': 'ACTIVE',
                                            'vip_address': '1.1.1.1',
@@ -283,8 +284,10 @@ def test_create_recover(impl):
     impl.find_secgrp.return_value = 'sg_id'
     impl.list_sg_rules.return_value = [{'Port Range': '', 'IP Range': ''}]
     impl.get_port_sec_enabled.return_value = False
-    impl.list_listeners.return_value = [{'name': 'name'}]
-    impl.list_pools.return_value = [{'name': 'name'}]
+    impl.list_listeners.return_value = [
+        {'name': 'openstack-integrator-1234-app'}]
+    impl.list_pools.return_value = [
+        {'name': 'openstack-integrator-1234-app'}]
     impl.list_fips.return_value = [
         {'Fixed IP Address': '2.2.2.2', 'Floating IP Address': '3.3.3.3'},
         {'Fixed IP Address': '1.1.1.1', 'Floating IP Address': '4.4.4.4'},
@@ -349,15 +352,15 @@ def test_find_matching_sg_rule(impl):
 
 def test_find(impl, log_err):
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
-    lb.name = 'lb'
     item1 = {'id': 1, 'name': 'not-lb'}
-    item2 = {'id': 2, 'name': 'lb'}
-    item3 = {'id': 3, 'name': 'lb'}
+    item2 = {'id': 2, 'name': 'openstack-integrator-1234-app'}
+    item3 = {'id': 3, 'name': 'openstack-integrator-1234-app'}
     assert lb._find('foo', [item1]) is None
     assert lb._find('foo', [item1, item2]) == item2
     with pytest.raises(openstack.OpenStackLBError):
         lb._find('foo', [item1, item2, item3])
-    log_err.assert_called_with('Multiple {} found: {}', 'foo', 'lb')
+    log_err.assert_called_with('Multiple {} found: {}', 'foo',
+                               'openstack-integrator-1234-app')
 
 
 def test_update_members(impl, _openstack):
