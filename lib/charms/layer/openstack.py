@@ -363,6 +363,7 @@ class LoadBalancer:
 
     @classmethod
     def load_from_cached(cls, key):
+        """Load loadbalancer from cached information."""
         info = kv().get(key)
         if not info:
             raise OpenStackLBError(action="load")
@@ -372,6 +373,7 @@ class LoadBalancer:
 
     @classmethod
     def get_cached_lbs(cls):
+        """Get all cached loadbalancer keys."""
         return kv().getrange("{}.".format(cls.key_prefix)).keys()
 
     def __init__(self, app_name, port, subnet, algorithm, fip_net,
@@ -389,11 +391,8 @@ class LoadBalancer:
         self.members = set()
         self.is_created = False
         self._impl = self._get_impl()
-        if self.subnet:
-            self.is_port_sec_enabled = self._impl.get_port_sec_enabled()
-        else:
-            self.is_port_sec_enabled = False
         # cache this since we access it multiple times
+        self.is_port_sec_enabled = self._impl.get_port_sec_enabled()
         self._try_load_cached_info()
 
     @property

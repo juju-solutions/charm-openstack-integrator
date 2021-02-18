@@ -306,6 +306,46 @@ def test_create_recover(impl):
     assert not impl.create_fip.called
 
 
+def test_load_from_cache(impl):
+    openstack.kv().get.return_value = {
+        "app_name": "app", "port": "80", "subnet": "subnet",
+        "algorithm": "alg", "fip_net": "net", "manage_secgrps": False,
+        "sg_id": None, "fip": "4.4.4.4", "address": "1.1.1.1", "members": []
+    }
+    lb = openstack.LoadBalancer.load_from_cached("test-key")
+    assert lb.name == "openstack-integrator-1234-app"
+    assert lb.key == "created_lbs.openstack-integrator-1234-app"
+    assert lb.app_name == "app"
+    assert lb.port == "80"
+    assert lb.subnet == "subnet"
+    assert lb.algorithm == "alg"
+    assert lb.fip_net == "net"
+    assert lb.manage_secgrps is False
+    assert lb.sg_id is None
+    assert lb.fip == "4.4.4.4"
+    assert lb.address == "1.1.1.1"
+    assert lb.members == set()
+    assert lb.is_created
+
+    impl.get_port_sec_enabled.assert_called_once()
+    impl.find_secgrp.assert_called_with(
+        "openstack-integrator-1234-app-members")
+
+    openstack.kv().get.reset_mock()
+
+
+def test_delete_loadbalancer(impl):
+    openstack.kv().get.return_value = None
+    lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', 'net', True)
+    lb.delete()
+
+    impl.get_port_sec_enabled.assert_called_once()
+    impl.delete_loadbalancer.assert_called_once()
+    openstack.kv().unset.assert_called_with(
+        "created_lbs.openstack-integrator-1234-app"
+    )
+
+
 def test_wait_not_pending(impl):
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
     test_func = mock.Mock(side_effect=[
