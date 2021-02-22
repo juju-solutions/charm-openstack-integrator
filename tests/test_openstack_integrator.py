@@ -43,7 +43,9 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf, kv):
     openstack.update_nrpe_config()
     mock_nrpe_setup.add_check.assert_not_called()
     mock_nrpe_setup.remove_check.assert_called_once_with(
-        shortname="openstack_loadbalancers", description="", check_cmd=""
+        shortname="openstack_loadbalancers", description="",
+        check_cmd="/test/check_openstack_loadbalancer.py "
+                  "-c /etc/nagios/openstack.cnf"
     )
     mock_write_nagios_openstack_cnf.assert_called_once_with()
     mock_nrpe_setup.reset_mock()
@@ -144,7 +146,9 @@ def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf, kv):
     mock_config.get.side_effect = {}.get
     openstack.remove_nrpe_config()
     mock_nrpe_setup.remove_check.assert_called_once_with(
-        shortname="openstack_loadbalancers", description="", check_cmd=""
+        shortname="openstack_loadbalancers", description="",
+        check_cmd="/test/check_openstack_loadbalancer.py "
+                  "-c /etc/nagios/openstack.cnf"
     )
     mock_remove_nagios_openstack_cnf.assert_called_once_with()
     mock_remove_nagios_openstack_cnf.reset_mock()
@@ -154,9 +158,13 @@ def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf, kv):
     mock_config.get.side_effect = {"nrpe-server-ids": "1,2,3"}.get
     openstack.remove_nrpe_config()
     mock_nrpe_setup.remove_check.assert_has_calls([
-        mock.call(shortname="openstack_servers", description="", check_cmd=""),
+        mock.call(shortname="openstack_servers", description="",
+                  check_cmd="/test/check_openstack_interface.py server "
+                            "-c /etc/nagios/openstack.cnf "
+                            "--id 1 --id 2 --id 3"),
         mock.call(shortname="openstack_loadbalancers", description="",
-                  check_cmd=""),
+                  check_cmd="/test/check_openstack_loadbalancer.py "
+                            "-c /etc/nagios/openstack.cnf"),
     ])
     mock_remove_nagios_openstack_cnf.assert_called_once_with()
     mock_remove_nagios_openstack_cnf.reset_mock()

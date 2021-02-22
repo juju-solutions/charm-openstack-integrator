@@ -133,7 +133,7 @@ def create_or_update_loadbalancers():
                                                      request.members)
             request.set_address_port(lb.fip or lb.address, lb.port)
 
-            set_flag("nrpe-external-master.initial-config")
+            set_flag("loadbalancers.changed")
     except layer.openstack.OpenStackError as e:
         layer.status.blocked(str(e))
 
@@ -166,6 +166,7 @@ def update_nrpe_config(initialized=False):
     nrpe_helpers.update_openstack_interface_check(nrpe_setup, initialized)
     nrpe_helpers.update_openstack_loadbalancer_check(nrpe_setup)
 
+    clear_flag("loadbalancers.changed")
     hookenv.log("NRPE checks were updated.", level=hookenv.DEBUG)
 
 
@@ -181,4 +182,5 @@ def remove_nrpe_config():
 
     nrpe_helpers.remove_nagios_openstack_cnf()
     clear_flag("nrpe-external-master.initial-config")
+    clear_flag("loadbalancers.changed")
     hookenv.log("NRPE checks was removed.", level=hookenv.DEBUG)
