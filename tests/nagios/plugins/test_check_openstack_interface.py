@@ -47,8 +47,7 @@ def test_check_network(networks, ids, kwargs, exp_error, exp_count,
     for net_id, status in networks:
         add_interface("network", interface_id=net_id, status=status)
 
-    check_raises(exp_error, exp_count, credentials, "network", ids,
-                           **kwargs)
+    check_raises(exp_error, exp_count, credentials, "network", ids, **kwargs)
 
 
 @pytest.mark.parametrize("subnets,ids,exp_error,exp_count", [

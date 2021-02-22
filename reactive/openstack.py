@@ -132,6 +132,8 @@ def create_or_update_loadbalancers():
             lb = layer.openstack.manage_loadbalancer(request.application_name,
                                                      request.members)
             request.set_address_port(lb.fip or lb.address, lb.port)
+
+            set_flag("nrpe-external-master.initial-config")
     except layer.openstack.OpenStackError as e:
         layer.status.blocked(str(e))
 
@@ -154,7 +156,6 @@ def initial_nrpe_config():
 @when_any("config.changed.nagios_context",
           "config.changed.nagios_servicegroups",
           "nrpe-external-master.reconfigure",
-          # TODO: add condition to trigger
           *nrpe_helpers.NRPE_CONFIG_FLAGS_CHANGED)
 def update_nrpe_config(initialized=False):
     """Set up all NRPE checks."""

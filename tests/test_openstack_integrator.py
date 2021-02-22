@@ -32,7 +32,7 @@ def test_initial_nrpe_config_failed(mock_update_nrpe_config):
 
 
 @mock.patch("nrpe_helpers.write_nagios_openstack_cnf")
-def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
+def test_update_nrpe_config(mock_write_nagios_openstack_cnf, kv):
     nrpe.NRPE.return_value = mock_nrpe_setup = MagicMock()
     NAGIOS_PLUGINS_DIR.__fspath__.return_value = "/test/"
     config.return_value = mock_config = MagicMock()
@@ -46,7 +46,6 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
         shortname="openstack_loadbalancers", description="", check_cmd=""
     )
     mock_write_nagios_openstack_cnf.assert_called_once_with()
-    mock_write_nagios_openstack_cnf.reset_mock()
     mock_nrpe_setup.reset_mock()
     mock_config.reset_mock()
 
@@ -105,11 +104,38 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
     with pytest.raises(ValueError):
         openstack.update_nrpe_config()
 
+    mock_nrpe_setup.reset_mock()
     mock_config.reset_mock()
+
+    # add NRPE check for loadbalancers
+    kv().getrange.return_value = {"lb_1": None}
+    mock_config.changed.return_value = False
+    mock_config.get.side_effect = {}.get
+    openstack.update_nrpe_config()
+    mock_nrpe_setup.add_check.assert_called_once_with(
+        shortname="openstack_loadbalancers",
+        description="Check loadbalancers: lb_1",
+        check_cmd="/test/check_openstack_loadbalancer.py "
+                  "-c /etc/nagios/openstack.cnf --name lb_1"
+    )
+    mock_nrpe_setup.remove_check.assert_not_called()
+    mock_nrpe_setup.reset_mock()
+
+    kv().getrange.return_value = {"lb_1": None, "lb_2": None}
+    openstack.update_nrpe_config()
+    mock_nrpe_setup.add_check.assert_called_once_with(
+        shortname="openstack_loadbalancers",
+        description="Check loadbalancers: lb_1,lb_2",
+        check_cmd="/test/check_openstack_loadbalancer.py "
+                  "-c /etc/nagios/openstack.cnf --name lb_1 --name lb_2"
+    )
+
+    mock_nrpe_setup.remove_check.assert_not_called()
+    mock_nrpe_setup.reset_mock()
 
 
 @mock.patch("nrpe_helpers.remove_nagios_openstack_cnf")
-def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf):
+def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf, kv):
     nrpe.NRPE.return_value = mock_nrpe_setup = MagicMock()
     NAGIOS_PLUGINS_DIR.__fspath__.return_value = "/test/"
     config.return_value = mock_config = MagicMock()

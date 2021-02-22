@@ -1,4 +1,3 @@
-import sys
 from configparser import ConfigParser
 from unittest.mock import MagicMock
 
@@ -89,4 +88,3 @@ def add_interface():
 def loadbalancers():
     global LOADBALANCERS
     yield LOADBALANCERS
-
