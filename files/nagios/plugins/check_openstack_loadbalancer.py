@@ -39,8 +39,8 @@ def check(credentials, names):
     """Check OpenStack loadbalancer.
     :param credentials: OpenStack credentials
     :type credentials: configparser.ConfigParser
-    :param ids: OpenStack loadbalancer IDs that will be check
-    :type ids: Set[str]
+    :param names: OpenStack loadbalancer names that will be check
+    :type names: Set[str]
     :raise nagios_plugin3.CriticalError: if loadbalancer not found
     :raise nagios_plugin3.CriticalError: if loadbalancer is in critical state
     :raise nagios_plugin3.WarningError: if loadbalancer is in pending state
@@ -74,7 +74,7 @@ def check(credentials, names):
                                          len(names)))
 
     print("OK - All loadbalancers passed. ({count}/{count}) "
-          "IDs: {ids}".format(count=len(names), ids=SEPARATOR.join(names)))
+          "IDs: {names}".format(count=len(names), names=SEPARATOR.join(names)))
 
 
 def main():

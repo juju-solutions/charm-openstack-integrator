@@ -1,17 +1,11 @@
 import sys
 from configparser import ConfigParser
-from unittest import mock
 from unittest.mock import MagicMock
 
 import openstack
 import pytest
 
-sys.path.append("files/nagios/plugins")
-
-import check_openstack_interface  # noqa: E402
-import check_openstack_loadbalancer  # noqa: E402
-
-INTERFACES = {}
+INTERFACES, LOADBALANCERS = {}, {}
 
 
 class FakeOpenStackInterface:
@@ -58,20 +52,25 @@ def credentials_cnf(tmpdir, credentials):
 
 @pytest.fixture(autouse=True)
 def mock_openstack(monkeypatch):
-    global INTERFACES
+    global INTERFACES, LOADBALANCERS
     fake_connection = MagicMock()
+    # interface
     fake_connection.network.networks.side_effect = lambda: [
         net for net in INTERFACES.values() if net.type == "network"]
     fake_connection.network.subnets.side_effect = lambda: [
         subnet for subnet in INTERFACES.values() if subnet.type == "subnet"]
     fake_connection.network.ports.side_effect = lambda: [
         port for port in INTERFACES.values() if port.type == "port"]
+    # loadbalancer
+    fake_connection.load_balancer.find_load_balancer = lambda name_or_id: \
+        LOADBALANCERS.get(name_or_id)
 
     monkeypatch.setattr(openstack, "connect", lambda: fake_connection)
 
     yield fake_connection
 
     INTERFACES.clear()
+    LOADBALANCERS.clear()
 
 
 @pytest.fixture
@@ -87,37 +86,7 @@ def add_interface():
 
 
 @pytest.fixture
-def remove_interface():
-    def _remove_interface(interface_id):
-        global INTERFACES
-        del INTERFACES[interface_id]
+def loadbalancers():
+    global LOADBALANCERS
+    yield LOADBALANCERS
 
-    yield _remove_interface
-
-
-def get_check_raises(check_script):
-    def check_raises(exp_error, exp_count, *args, **kwargs):
-        """run check with checking number of IDs"""
-        def comma_join(interfaces):
-            assert exp_count == len(interfaces), "Unexpected number of IDs"
-            return ",".join(interfaces)
-
-        with mock.patch.object(check_script, "SEPARATOR") as mock_sep:
-            mock_sep.join.side_effect = comma_join
-            if exp_error:
-                with pytest.raises(exp_error):
-                    check_script.check(*args, **kwargs)
-            else:
-                check_script.check(*args, **kwargs)
-
-    return check_raises
-
-
-@pytest.fixture
-def check_interface_raises():
-    yield get_check_raises(check_openstack_interface)
-
-
-@pytest.fixture
-def check_loadbalancer_raises():
-    yield get_check_raises(check_openstack_loadbalancer)
