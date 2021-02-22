@@ -1,5 +1,4 @@
 import sys
-from unittest import mock
 
 import pytest
 
@@ -7,22 +6,7 @@ from nagios_plugin3 import CriticalError, UnknownError
 
 sys.path.append("files/nagios/plugins")
 
-from check_openstack_interface import check, _parse_arguments  # noqa: E402
-
-
-def check_raises(exp_error, exp_count, *args, **kwargs):
-
-    def sep_join(interfaces):
-        assert exp_count == len(interfaces), "Unexpected number of interfaces"
-        return ",".join(interfaces)
-
-    with mock.patch("check_openstack_interface.SEPARATOR") as mock_sep:
-        mock_sep.join.side_effect = sep_join
-        if exp_error:
-            with pytest.raises(exp_error):
-                check(*args, **kwargs)
-        else:
-            check(*args, **kwargs)
+from check_openstack_interface import _parse_arguments  # noqa: E402
 
 
 @pytest.mark.parametrize("networks,ids,kwargs,exp_error,exp_count", [
@@ -43,12 +27,13 @@ def check_raises(exp_error, exp_count, *args, **kwargs):
 ])
 def test_check_openstack_interface_network(
         networks, ids, kwargs, exp_error, exp_count, credentials,
-        add_interface):
+        add_interface, check_interface_raises):
     """Test NRPE check for OpenStack networks."""
     for net_id, status in networks:
         add_interface("network", interface_id=net_id, status=status)
 
-    check_raises(exp_error, exp_count, credentials, "network", ids, **kwargs)
+    check_interface_raises(exp_error, exp_count, credentials, "network", ids,
+                           **kwargs)
 
 
 @pytest.mark.parametrize("subnets,ids,exp_error,exp_count", [
@@ -58,12 +43,13 @@ def test_check_openstack_interface_network(
     (["1", "2", "3"], {"1", "2", "3"}, None, 3)
 ])
 def test_check_openstack_interface_subnet(
-        subnets, ids, exp_error, exp_count, credentials, add_interface):
+        subnets, ids, exp_error, exp_count, credentials, add_interface,
+        check_interface_raises):
     """Test NRPE check for OpenStack subnets (without 'status')."""
     for subnet_id in subnets:
         add_interface("subnet", interface_id=subnet_id)
 
-    check_raises(exp_error, exp_count, credentials, "subnet", ids)
+    check_interface_raises(exp_error, exp_count, credentials, "subnet", ids)
 
 
 @pytest.mark.parametrize("ports,skip,select,exp_error,exp_count", [
@@ -89,13 +75,14 @@ def test_check_openstack_interface_subnet(
      {}, {"network_id": "ext"}, None, 10),
 ])
 def test_check_openstack_interface_port(
-        ports, skip, select, exp_error, exp_count, credentials, add_interface):
+        ports, skip, select, exp_error, exp_count, credentials, add_interface,
+        check_interface_raises):
     """Test NRPE check for OpenStack ports (apply skip-id and select)."""
     for port_id, kwargs in ports:
         add_interface("port", interface_id=port_id, **kwargs)
 
-    check_raises(exp_error, exp_count, credentials, "port", {},
-                 skip=skip, select=select, check_all=True)
+    check_interface_raises(exp_error, exp_count, credentials, "port", {},
+                           skip=skip, select=select, check_all=True)
 
 
 @pytest.mark.parametrize("args,exp_output", [

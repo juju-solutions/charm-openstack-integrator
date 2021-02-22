@@ -3,7 +3,11 @@ import os
 
 from charmhelpers.core import hookenv
 from charmhelpers.core.templating import render
-from charms.layer.nagios import NAGIOS_PLUGINS_DIR
+from charms.layer.nagios import (
+    NAGIOS_PLUGINS_DIR,
+    install_nagios_plugin_from_file,
+    remove_nagios_plugin,
+)
 from charms.layer.openstack import get_creds_env, get_user_credentials
 
 
@@ -34,6 +38,7 @@ NRPE_CHECKS = [
               "nrpe-security-group-ids", None, False),
 ]
 NRPE_OPENSTACK_INTERFACE = "check_openstack_interface.py"
+NRPE_OPENSTACK_LOADBALANCER = "check_openstack_loadbalancer.py"
 NRPE_CONFIG_FLAGS_CHANGED = [
     *["config.changed.{}".format(c.config) for c in NRPE_CHECKS],
     *["config.changed.{}".format(c.config_skip) for c in NRPE_CHECKS
@@ -90,3 +95,77 @@ def create_nrpe_check_cmd(check):
         cmd += "".join([" --id {}".format(i) for i in ids])
 
     return cmd
+
+
+def _add_nrpe_check(nrpe_setup, name, description, cmd):
+    nrpe_setup.add_check(shortname=name, description=description,
+                         check_cmd=cmd)
+    hookenv.log("NRPE check {} was added".format(name), level=hookenv.DEBUG)
+
+
+def _remove_nrpe_check(nrpe_setup, name, cmd=""):
+    nrpe_setup.remove_check(shortname=name, description="", check_cmd=cmd)
+    hookenv.log("NRPE check {} was removed".format(name), level=hookenv.DEBUG)
+
+
+def update_openstack_interface_check(nrpe_setup, initialized):
+    """Update NRPE checks for OpenStack interfaces."""
+    config = hookenv.config()
+    install_nagios_plugin_from_file(
+        "files/nagios/plugins/check_openstack_interface.py",
+        NRPE_OPENSTACK_INTERFACE)
+
+    for check in NRPE_CHECKS:
+        cmd = create_nrpe_check_cmd(check)
+        if (config.get(check.config) and (config.changed(check.config) or
+                                          config.changed(check.config_skip) or
+                                          initialized)):
+            description = "Check {}s: {} (skip: {})".format(
+                check.interface, config.get(check.config) or "",
+                config.get(check.config_skip) or "")
+            _add_nrpe_check(nrpe_setup, check.name, description, cmd)
+        elif not config.get(check.config) and config.changed(check.config):
+            _remove_nrpe_check(nrpe_setup, check.name, cmd)
+
+    nrpe_setup.write()
+
+
+def remove_openstack_interface_check(nrpe_setup):
+    """Remove NRPE checks for OpenStack interfaces."""
+    config = hookenv.config()
+    for check in NRPE_CHECKS:
+        if config.get(check.config):
+            _remove_nrpe_check(nrpe_setup, check.name)
+
+    nrpe_setup.write()
+    remove_nagios_plugin(NRPE_OPENSTACK_INTERFACE)
+
+
+def update_openstack_loadbalancer_check(nrpe_setup):
+    """Update NRPE check for OpenStack loadbalancers."""
+    install_nagios_plugin_from_file(
+        "files/nagios/plugins/check_openstack_loadbalancer.py",
+        NRPE_OPENSTACK_LOADBALANCER)
+    # TODO: get names of all loadbalancer
+    # TODO: add condition to check if update is needed
+    lbs = []
+    if not lbs:
+        _remove_nrpe_check(nrpe_setup, "openstack_loadbalancers")
+    else:
+        script = os.path.join(NAGIOS_PLUGINS_DIR, NRPE_OPENSTACK_LOADBALANCER)
+        names = "".join([" --name {}".format(lb_name) for lb_name in lbs])
+        cmd = "{} -c {} {}".format(
+            script, OPENSTACK_NAGIOS_CREDENTIAL_FILE, names)
+        description = "Check loadbalancers: {}".format(",".join(names))
+        _add_nrpe_check(
+            nrpe_setup, "openstack_loadbalancers", description, cmd)
+
+    nrpe_setup.write()
+
+
+def remove_openstack_loadbalancer_check(nrpe_setup):
+    """Remove NRPE check for OpenStack loadbalancers."""
+    _remove_nrpe_check(nrpe_setup, "openstack_loadbalancers")
+
+    nrpe_setup.write()
+    remove_nagios_plugin(NRPE_OPENSTACK_INTERFACE)

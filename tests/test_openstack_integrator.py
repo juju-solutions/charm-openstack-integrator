@@ -42,7 +42,9 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
     mock_config.get.side_effect = {}.get
     openstack.update_nrpe_config()
     mock_nrpe_setup.add_check.assert_not_called()
-    mock_nrpe_setup.remove_check.assert_not_called()
+    mock_nrpe_setup.remove_check.assert_called_once_with(
+        shortname="openstack_loadbalancers", description="", check_cmd=""
+    )
     mock_write_nagios_openstack_cnf.assert_called_once_with()
     mock_write_nagios_openstack_cnf.reset_mock()
     mock_nrpe_setup.reset_mock()
@@ -54,11 +56,11 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
     openstack.update_nrpe_config()
     mock_nrpe_setup.add_check.assert_called_once_with(
         shortname="kubernetes_subnet",
-        description="Check subnets: 1234",
+        description="Check subnets: 1234 (skip: )",
         check_cmd="/test/check_openstack_interface.py subnet "
                   "-c /etc/nagios/openstack.cnf --id 1234"
     )
-    assert mock_nrpe_setup.remove_check.call_count == 7
+    assert mock_nrpe_setup.remove_check.call_count == 7 + 1
     mock_nrpe_setup.reset_mock()
     mock_config.reset_mock()
 
@@ -68,11 +70,11 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
     openstack.update_nrpe_config()
     mock_nrpe_setup.add_check.assert_called_once_with(
         shortname="openstack_servers",
-        description="Check servers: 1,2,3",
+        description="Check servers: 1,2,3 (skip: )",
         check_cmd="/test/check_openstack_interface.py server "
                   "-c /etc/nagios/openstack.cnf --id 1 --id 2 --id 3"
     )
-    assert mock_nrpe_setup.remove_check.call_count == 7
+    assert mock_nrpe_setup.remove_check.call_count == 7 + 1
     mock_nrpe_setup.reset_mock()
     mock_config.reset_mock()
 
@@ -81,13 +83,13 @@ def test_update_nrpe_config(mock_write_nagios_openstack_cnf):
     mock_config.get.side_effect = {
         "nrpe-server-ids": "all", "nrpe-skip-server-ids": "1,2"}.get
     openstack.update_nrpe_config()
-    mock_nrpe_setup.add_check.assert_called_once_with(
+    mock_nrpe_setup.add_check.assert_called_with(
         shortname="openstack_servers",
-        description="Check servers: all",
+        description="Check servers: all (skip: 1,2)",
         check_cmd="/test/check_openstack_interface.py server "
                   "-c /etc/nagios/openstack.cnf --all --skip-id 1 --skip-id 2"
     )
-    assert mock_nrpe_setup.remove_check.call_count == 7
+    assert mock_nrpe_setup.remove_check.call_count == 7 + 1
     mock_nrpe_setup.reset_mock()
     mock_config.reset_mock()
 
@@ -115,7 +117,9 @@ def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf):
     # no NRPE checks were removed
     mock_config.get.side_effect = {}.get
     openstack.remove_nrpe_config()
-    mock_nrpe_setup.remove_check.assert_not_called()
+    mock_nrpe_setup.remove_check.assert_called_once_with(
+        shortname="openstack_loadbalancers", description="", check_cmd=""
+    )
     mock_remove_nagios_openstack_cnf.assert_called_once_with()
     mock_remove_nagios_openstack_cnf.reset_mock()
     mock_nrpe_setup.reset_mock()
@@ -123,11 +127,11 @@ def test_remove_nrpe_config(mock_remove_nagios_openstack_cnf):
     # remove NRPE check for kubernetes network
     mock_config.get.side_effect = {"nrpe-server-ids": "1,2,3"}.get
     openstack.remove_nrpe_config()
-    mock_nrpe_setup.remove_check.assert_called_once_with(
-        shortname="openstack_servers", description="",
-        check_cmd="/test/check_openstack_interface.py server "
-                  "-c /etc/nagios/openstack.cnf --id 1 --id 2 --id 3"
-    )
+    mock_nrpe_setup.remove_check.assert_has_calls([
+        mock.call(shortname="openstack_servers", description="", check_cmd=""),
+        mock.call(shortname="openstack_loadbalancers", description="",
+                  check_cmd=""),
+    ])
     mock_remove_nagios_openstack_cnf.assert_called_once_with()
     mock_remove_nagios_openstack_cnf.reset_mock()
     mock_nrpe_setup.reset_mock()

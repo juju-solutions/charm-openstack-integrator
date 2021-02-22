@@ -10,7 +10,7 @@ import argparse
 from configparser import ConfigParser
 
 import openstack
-from nagios_plugin3 import try_check, CriticalError, WarningError
+from nagios_plugin3 import try_check, CriticalError, WarnError
 
 
 SEPARATOR = ","
@@ -27,15 +27,15 @@ def _parse_arguments():
         "-c", "--credential", required=True, type=argparse.FileType("r"),
         help="path to OpenStack credential cnf file")
     parser.add_argument(
-        "-i", "--id", action="append", type=str, default=[],
-        help="check specific id or name (can be used multiple times)")
+        "-n", "--name", action="append", type=str, default=[],
+        help="check specific name (can be used multiple times)")
     args = parser.parse_args()
     credentials.read_file(args.credential)
 
-    return credentials, set(args.id)
+    return credentials, set(args.name)
 
 
-def check(credentials, ids):
+def check(credentials, names):
     """Check OpenStack loadbalancer.
     :param credentials: OpenStack credentials
     :type credentials: configparser.ConfigParser
@@ -47,40 +47,39 @@ def check(credentials, ids):
     """
     notfound, warning, critical = set(), set(), set()
     connection = openstack.connect(**credentials["openstack"])
-    for name_or_id in ids:
-        lb = connection.load_balancer.find_load_balancer(name_or_id=name_or_id)
+    for name in names:
+        lb = connection.load_balancer.find_load_balancer(name_or_id=name)
         if lb is None:
-            notfound.add(name_or_id)
+            notfound.add(name)
         elif (lb.provisioning_status == "ACTIVE" and
               lb.operating_status == "ONLINE"):
             continue
         elif lb.provisioning_status in \
                 ["PENDING_CREATE", "PENDING_UPDATE", "PENDING_DELETE"]:
-            warning.add(name_or_id)
+            warning.add(name)
         else:
-            critical.add(name_or_id)
+            critical.add(name)
 
     if notfound.union(critical):
-        raise CriticalError(
-            "loadbalancers \"{}\" not found and \"{}\" in critical state "
-            "({}/{})".format(SEPARATOR.join(notfound),
-                             SEPARATOR.join(critical),
-                             len(notfound.union(critical)),
-                             len(ids)))
+        raise CriticalError("loadbalancers \"{}\" not found and \"{}\" in "
+                            "critical state "
+                            "({}/{})".format(SEPARATOR.join(notfound),
+                                             SEPARATOR.join(critical),
+                                             len(notfound.union(critical)),
+                                             len(names)))
 
     if warning:
-        WarningError("loadbalancers \"{}\" are in pending state "
-                     "({}/{})".format(SEPARATOR.join(warning),
-                                      len(warning),
-                                      len(ids)))
+        raise WarnError("loadbalancers \"{}\" are in pending state "
+                        "({}/{})".format(SEPARATOR.join(warning), len(warning),
+                                         len(names)))
 
     print("OK - All loadbalancers passed. ({count}/{count}) "
-          "IDs: {ids}".format(count=len(ids), ids=SEPARATOR.join(ids)))
+          "IDs: {ids}".format(count=len(names), ids=SEPARATOR.join(names)))
 
 
 def main():
-    credentials, ids = _parse_arguments()
-    try_check(credentials, ids)
+    credentials, names = _parse_arguments()
+    try_check(credentials, names)
 
 
 if __name__ == "__main__":

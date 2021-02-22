@@ -1,8 +1,15 @@
+import sys
 from configparser import ConfigParser
+from unittest import mock
 from unittest.mock import MagicMock
 
 import openstack
 import pytest
+
+sys.path.append("files/nagios/plugins")
+
+import check_openstack_interface  # noqa: E402
+import check_openstack_loadbalancer  # noqa: E402
 
 INTERFACES = {}
 
@@ -86,3 +93,31 @@ def remove_interface():
         del INTERFACES[interface_id]
 
     yield _remove_interface
+
+
+def get_check_raises(check_script):
+    def check_raises(exp_error, exp_count, *args, **kwargs):
+        """run check with checking number of IDs"""
+        def comma_join(interfaces):
+            assert exp_count == len(interfaces), "Unexpected number of IDs"
+            return ",".join(interfaces)
+
+        with mock.patch.object(check_script, "SEPARATOR") as mock_sep:
+            mock_sep.join.side_effect = comma_join
+            if exp_error:
+                with pytest.raises(exp_error):
+                    check_script.check(*args, **kwargs)
+            else:
+                check_script.check(*args, **kwargs)
+
+    return check_raises
+
+
+@pytest.fixture
+def check_interface_raises():
+    yield get_check_raises(check_openstack_interface)
+
+
+@pytest.fixture
+def check_loadbalancer_raises():
+    yield get_check_raises(check_openstack_loadbalancer)
