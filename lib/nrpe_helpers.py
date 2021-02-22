@@ -8,7 +8,9 @@ from charms.layer.nagios import (
     install_nagios_plugin_from_file,
     remove_nagios_plugin,
 )
-from charms.layer.openstack import get_creds_env, get_user_credentials
+from charms.layer.openstack import (
+    get_all_loadbalancer, get_creds_env, get_user_credentials
+)
 
 
 # NOTE (rgildein): This namedtuple is used to define NRPE check. Composed of:
@@ -146,9 +148,9 @@ def update_openstack_loadbalancer_check(nrpe_setup):
     install_nagios_plugin_from_file(
         "files/nagios/plugins/check_openstack_loadbalancer.py",
         NRPE_OPENSTACK_LOADBALANCER)
-    # TODO: get names of all loadbalancer
+
+    lbs = get_all_loadbalancer()
     # TODO: add condition to check if update is needed
-    lbs = []
     if not lbs:
         _remove_nrpe_check(nrpe_setup, "openstack_loadbalancers")
     else:

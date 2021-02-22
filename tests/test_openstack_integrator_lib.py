@@ -586,3 +586,8 @@ def test_normalize_creds(_determine_version, log_err):
 
     attrs['endpoint-tls-ca'] = attrs.pop('cacertificates')[0]
     assert openstack._normalize_creds(attrs) == expected
+
+
+def test_get_all_loadbalancer(kv):
+    kv().getrange.return_value = {"lb_1": {}, "lb_2": {}, "lb_3": {}}
+    assert openstack.get_all_loadbalancer() == ["lb_1", "lb_2", "lb_3"]

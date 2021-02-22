@@ -19,6 +19,8 @@ from charmhelpers.core.unitdata import kv
 from charms.layer import status
 
 
+LB_STORAGE_PREFIX = "created_lbs"
+
 # When debugging hooks, for some reason HOME is set to /home/ubuntu, whereas
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
@@ -372,6 +374,12 @@ def _is_base64(s):
         return False
 
 
+def get_all_loadbalancer():
+    """Get the names of all LoadBalancer created."""
+    lbs = kv().getrange("{}.".format(LB_STORAGE_PREFIX), strip=True)
+    return list(lbs.keys())
+
+
 class LoadBalancer:
     """
     Base class for wrapper around the OpenStack CLI.
@@ -403,7 +411,7 @@ class LoadBalancer:
         self.algorithm = algorithm
         self.fip_net = fip_net
         self.manage_secgrps = manage_secgrps
-        self._key = 'created_lbs.{}'.format(self.name)
+        self._key = '{}.{}'.format(LB_STORAGE_PREFIX, self.name)
         self.sg_id = None
         self.member_sg_id = None
         self.fip = None
