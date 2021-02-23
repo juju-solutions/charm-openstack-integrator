@@ -19,6 +19,8 @@ from charmhelpers.core.unitdata import kv
 from charms.layer import status
 
 
+CACHED_LB_PREFIX = "created_lbs"
+
 # When debugging hooks, for some reason HOME is set to /home/ubuntu, whereas
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
@@ -338,12 +340,16 @@ def _is_base64(s):
         return False
 
 
+def get_all_cached_lbs():
+    """Get all cached loadbalancer."""
+    return kv().getrange("{}.".format(CACHED_LB_PREFIX))
+
+
 class LoadBalancer:
     """
     Base class for wrapper around the OpenStack CLI.
     """
     octavia_available = None
-    key_prefix = "created_lbs"
 
     @classmethod
     def get_or_create(cls, app_name, port, subnet, algorithm, fip_net,
@@ -362,19 +368,14 @@ class LoadBalancer:
         return lb
 
     @classmethod
-    def load_from_cached(cls, key):
+    def load_from_cached(cls, cached_info):
         """Load loadbalancer from cached information."""
-        info = kv().get(key)
-        if not info:
+        if not cached_info:
             raise OpenStackLBError(action="load")
 
-        return cls(info["app_name"], info["port"], info["subnet"],
-                   info["algorithm"], info["fip_net"], info["manage_secgrps"])
-
-    @classmethod
-    def get_cached_lbs(cls):
-        """Get all cached loadbalancer keys."""
-        return kv().getrange("{}.".format(cls.key_prefix)).keys()
+        return cls(cached_info["app_name"], cached_info["port"],
+                   cached_info["subnet"], cached_info["algorithm"],
+                   cached_info["fip_net"], cached_info["manage_secgrps"])
 
     def __init__(self, app_name, port, subnet, algorithm, fip_net,
                  manage_secgrps):
@@ -397,7 +398,7 @@ class LoadBalancer:
 
     @property
     def key(self):
-        return "{}.{}".format(self.key_prefix, self.name)
+        return "{}.{}".format(CACHED_LB_PREFIX, self.name)
 
     @property
     def name(self):

@@ -307,12 +307,12 @@ def test_create_recover(impl):
 
 
 def test_load_from_cache(impl):
-    openstack.kv().get.return_value = {
+    openstack.kv().get.return_value = cached_info = {
         "app_name": "app", "port": "80", "subnet": "subnet",
         "algorithm": "alg", "fip_net": "net", "manage_secgrps": False,
         "sg_id": None, "fip": "4.4.4.4", "address": "1.1.1.1", "members": []
     }
-    lb = openstack.LoadBalancer.load_from_cached("test-key")
+    lb = openstack.LoadBalancer.load_from_cached(cached_info)
     assert lb.name == "openstack-integrator-1234-app"
     assert lb.key == "created_lbs.openstack-integrator-1234-app"
     assert lb.app_name == "app"
