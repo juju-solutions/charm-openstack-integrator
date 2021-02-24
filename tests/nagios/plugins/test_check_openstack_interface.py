@@ -11,9 +11,11 @@ from check_openstack_interface import check, _parse_arguments  # noqa: E402
 
 
 def check_raises(exp_error, exp_count, *args, **kwargs):
+    if type(exp_count) != list:
+        exp_count = [exp_count]
 
     def sep_join(interfaces):
-        assert exp_count == len(interfaces), "Unexpected number of interfaces"
+        assert len(interfaces) in exp_count, "Unexpected number of interfaces"
         return ",".join(interfaces)
 
     with mock.patch("check_openstack_interface.SEPARATOR") as mock_sep:
@@ -30,16 +32,17 @@ def check_raises(exp_error, exp_count, *args, **kwargs):
     ([("1", "ACTIVE"), ("2", "DOWN")], set(),
      {"skip": {"2"}, "check_all": True}, None, 1),
     ([("1", "ACTIVE"), ("2", "DOWN")], set(), {"check_all": True},
-     CriticalError, 1),
+     CriticalError, [0, 1]),
     ([("1", "ACTIVE"), ("2", "TEST")], set(),
      {"check_all": True}, UnknownError, 1),
     ([("1", "ACTIVE"), ("2", "TEST")], {"1"}, {}, None, 1),
     ([("1", "ACTIVE"), ("2", "TEST")], set(),
      {"skip": {"2"}, "check_all": True}, None, 1),
     ([("1", "ACTIVE"), ("2", "DOWN")], {"1"}, {}, None, 1),
-    ([("1", "ACTIVE"), ("2", "DOWN")], {"1", "2"}, {}, CriticalError, 1),
-    ([("1", "DOWN"), ("2", "DOWN")], {"1", "2"}, {}, CriticalError, 2),
-    ([("1", "ACTIVE"), ("2", "DOWN")], {"3"}, {}, CriticalError, 1)
+    ([("1", "ACTIVE"), ("2", "DOWN")], {"1", "2"}, {}, CriticalError, [0, 1]),
+    ([("1", "DOWN"), ("2", "DOWN")], {"1", "2"}, {}, CriticalError, [0, 2]),
+    ([("1", "ACTIVE"), ("2", "DOWN")], {"3"}, {}, CriticalError, [0, 1]),
+    ([("1", "ACTIVE"), ("2", "DOWN")], {"1", "2", "3"}, {}, CriticalError, 1)
 ])
 def test_check_openstack_interface_network(
         networks, ids, kwargs, exp_error, exp_count, credentials,
@@ -54,7 +57,7 @@ def test_check_openstack_interface_network(
 @pytest.mark.parametrize("subnets,ids,exp_error,exp_count", [
     (["1"], {"1"}, None, 1),
     (["1", "2"], {"2"}, None, 1),
-    (["1", "2", "3"], {"4"}, CriticalError, 1),
+    (["1", "2", "3"], {"4"}, CriticalError, [0, 1]),
     (["1", "2", "3"], {"1", "2", "3"}, None, 3)
 ])
 def test_check_openstack_interface_subnet(
@@ -72,19 +75,19 @@ def test_check_openstack_interface_subnet(
      None, 1),
     ([("1", {"status": "ACTIVE", "network_id": "ext"}),
       ("2", {"status": "DOWN", "network_id": "int"})], {},
-     {"network_id": "int"}, CriticalError, 1),
+     {"network_id": "int"}, CriticalError, [0, 1]),
     ([("1", {"status": "ACTIVE", "network_id": "ext"}),
       ("2", {"status": "DOWN", "network_id": "int"})], {},
      {"network_id": "ext"}, None, 1),
     ([("1", {"status": "DOWN"})], {}, {"tenant_id": "test"}, None, 0),
     ([("1", {"status": "DOWN", "tenant_id": "test"})], {},
-     {"tenant_id": "test"}, CriticalError, 1),
+     {"tenant_id": "test"}, CriticalError, [0, 1]),
     ([("1", {"status": "DOWN", "tenant_id": "test", "network_id": "ext"})], {},
      {"tenant_id": "test", "network_id": "int"}, None, 0),
     ([("1", {"status": "DOWN", "tenant_id": "test", "network_id": "ext"})], {},
-     {"tenant_id": "test", "network_id": "ext"}, CriticalError, 1),
+     {"tenant_id": "test", "network_id": "ext"}, CriticalError, [0, 1]),
     ([("1", {"status": "DOWN", "tenant_id": "test", "network_id": "ext"})], {},
-     {"tenant_id": "test", "network_id": "ext"}, CriticalError, 1),
+     {"tenant_id": "test", "network_id": "ext"}, CriticalError, [0, 1]),
     ([(str(i), {"status": "ACTIVE", "network_id": "ext"}) for i in range(10)],
      {}, {"network_id": "ext"}, None, 10),
 ])
@@ -114,6 +117,7 @@ def test_parse_arguments(args, exp_output, monkeypatch, credentials_cnf):
                         ["", "network", "-c", credentials_cnf, *args])
     output = _parse_arguments()
 
+    assert output[0]["openstack"]["auth_url"] == "127.0.0.1"
     assert exp_output == output[2:]
 
 

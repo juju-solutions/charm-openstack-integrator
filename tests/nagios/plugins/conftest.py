@@ -35,7 +35,7 @@ def get_id(name):
 
 @pytest.fixture
 def credentials():
-    yield {"openstack": {}}
+    yield {"openstack": {"auth_url": "127.0.0.1"}}
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def mock_openstack(monkeypatch):
     fake_connection.network.ports.side_effect = lambda: [
         port for port in INTERFACES.values() if port.type == "port"]
 
-    monkeypatch.setattr(openstack, "connect", lambda: fake_connection)
+    monkeypatch.setattr(openstack, "connect", lambda auth_url: fake_connection)
 
     yield fake_connection
 
