@@ -7,6 +7,7 @@
 
 
 import argparse
+import os
 from configparser import ConfigParser
 
 import openstack
@@ -94,19 +95,52 @@ def _unhealthy(lb):
         (lb.operating_status, lb.provisioning_status)) == CRITICAL
 
 
+def _check_output(critical, notfound, warning, unknown, healthy):
+    """Process check output."""
+    total = len(healthy.union(critical, notfound, warning, unknown))
+    error = None
+    message = "OK: healthy LBs [{}] ({}/{})".format(
+        SEPARATOR.join(healthy), len(healthy), total)
+
+    if unknown:
+        error = UnknownError
+        message = "UNKNOWN: LBs [{}] ({}/{}){}{}".format(
+            SEPARATOR.join(unknown), len(unknown), total, os.linesep, message)
+
+    if warning:
+        error = WarnError
+        message = "WARNING: LBs [{}] ({}/{}){}{}".format(
+            SEPARATOR.join(warning), len(warning), total, os.linesep, message)
+
+    if notfound.union(critical):
+        error = CriticalError
+        msg_notfound = "LBs not found [{}] ({}/{})".format(
+            SEPARATOR.join(notfound), len(notfound), total)
+        msg_critical = "critical [{}] ({}/{})".format(
+            SEPARATOR.join(critical), len(critical), total)
+        message = "CRITICAL: {}, {}{}{}".format(
+            msg_notfound, msg_critical, os.linesep, message)
+
+    if error:
+        raise error(message)
+
+    print(message)
+
+
 def check(credentials, names):
     """Check OpenStack loadbalancer.
+
     :param credentials: OpenStack credentials
     :type credentials: configparser.ConfigParser
-    :param names: OpenStack loadbalancer names that will be check
+    :param names: OpenStack loadbalancer names that will be checked
     :type names: Set[str]
     :raise nagios_plugin3.CriticalError: if loadbalancer not found
     :raise nagios_plugin3.CriticalError: if loadbalancer is in critical state
     :raise nagios_plugin3.WarnError: if loadbalancer is in warning state
     :raise nagios_plugin3.UnknownError: if loadbalancer is in unknown state
     """
-    healthy = set()
-    notfound, warning, critical, unknown = set(), set(), set(), set()
+    critical, notfound, warning, unknown, healthy = (set(), set(), set(),
+                                                     set(), set())
     connection = openstack.connect(**credentials["openstack"])
     for name in names:
         lb = connection.load_balancer.find_load_balancer(name_or_id=name)
@@ -126,26 +160,7 @@ def check(credentials, names):
         else:  # LB is in unknown state
             unknown.add(lb_name)
 
-    if unknown:
-        raise UnknownError(
-            "loadbalancers \"{}\" are in unknown state ({}/{})".format(
-                SEPARATOR.join(unknown), len(unknown), len(names)))
-
-    if notfound.union(critical):
-        raise CriticalError(
-            "loadbalancers \"{}\" not found and \"{}\" in critical state "
-            "({}/{})".format(SEPARATOR.join(notfound),
-                             SEPARATOR.join(critical),
-                             len(notfound.union(critical)),
-                             len(names)))
-
-    if warning:
-        raise WarnError(
-            "loadbalancers \"{}\" are in warning state ({}/{})".format(
-                SEPARATOR.join(warning), len(warning), len(names)))
-
-    print("OK - All loadbalancers passed. ({count}/{count}) "
-          "IDs: {lbs}".format(count=len(names), lbs=SEPARATOR.join(healthy)))
+    _check_output(critical, notfound, warning, unknown, healthy)
 
 
 def main():
