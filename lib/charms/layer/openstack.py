@@ -130,14 +130,20 @@ def detect_octavia():
     """
     Determine whether the underlying OpenStack is using Octavia or not.
 
-    Returns True if Octavia is found, and False otherwise.
+    Returns True if Octavia is found in the region, and False otherwise.
     """
     try:
-        catalog = {s['Name'] for s in _openstack('catalog', 'list')}
+        creds = _load_creds()
+        region = creds['region']
+        for catalog in _openstack('catalog', 'list'):
+            if (catalog['Name'] == 'octavia' and catalog.get('Endpoints')
+                    and catalog['Endpoints'][0]['region'] == region):
+                return True
     except Exception:
         log_err('Error while trying to detect Octavia\n{}', format_exc())
-        return None
-    return 'octavia' in catalog
+        return False
+
+    return False
 
 
 def manage_loadbalancer(app_name, members):
