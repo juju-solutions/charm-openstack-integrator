@@ -23,7 +23,7 @@ from charms.layer import status
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
 
-CA_CERT_FILE = Path('/etc/openstack-integrator/ca.crt')
+CA_CERT_FILE = Path('/var/snap/openstackclients/common/ca.crt')
 MODEL_UUID = os.environ['JUJU_MODEL_UUID']
 MODEL_SHORT_ID = MODEL_UUID.split('-')[-1]
 config = hookenv.config()
