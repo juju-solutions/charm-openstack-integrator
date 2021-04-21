@@ -1,0 +1,76 @@
+description: A minimal two-machine Kubernetes cluster, appropriate for development.
+series: {{ series }}
+machines:
+  '0':
+    constraints: cores=2 mem=4G root-disk=16G
+    series: {{ series }}
+  '1':
+    constraints: cores=4 mem=4G root-disk=16G
+    series: {{ series }}
+services:
+  containerd:
+    charm: cs:~containers/containerd
+  easyrsa:
+    charm: cs:~containers/easyrsa
+    num_units: 1
+    to:
+    - '1'
+  etcd:
+    charm: cs:~containers/etcd
+    num_units: 1
+    options:
+      channel: 3.4/stable
+    to:
+    - '0'
+  flannel:
+    charm: cs:~containers/flannel
+  kubernetes-master:
+    charm: cs:~containers/kubernetes-master
+    expose: true
+    num_units: 1
+    options:
+      channel: 1.22/edge
+    to:
+    - '0'
+  kubernetes-worker:
+    charm: cs:~containers/kubernetes-worker
+    expose: true
+    num_units: 1
+    options:
+      channel: 1.22/edge
+    to:
+    - '1'
+  openstack-integrator:
+    charm: {{ master_charm }}
+    num_units: 1
+    trust: true
+    to:
+    - '0'
+
+relations:
+- - kubernetes-master:kube-api-endpoint
+  - kubernetes-worker:kube-api-endpoint
+- - kubernetes-master:kube-control
+  - kubernetes-worker:kube-control
+- - kubernetes-master:certificates
+  - easyrsa:client
+- - kubernetes-master:etcd
+  - etcd:db
+- - kubernetes-worker:certificates
+  - easyrsa:client
+- - etcd:certificates
+  - easyrsa:client
+- - flannel:etcd
+  - etcd:db
+- - flannel:cni
+  - kubernetes-master:cni
+- - flannel:cni
+  - kubernetes-worker:cni
+- - containerd:containerd
+  - kubernetes-worker:container-runtime
+- - containerd:containerd
+  - kubernetes-master:container-runtime
+- - openstack-integrator:clients
+  - kubernetes-master:openstack
+- - openstack-integrator:clients
+  - kubernetes-worker:openstack
