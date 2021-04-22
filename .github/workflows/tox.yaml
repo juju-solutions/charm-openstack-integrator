@@ -3,20 +3,59 @@ name: Run tests with Tox
 on: [push]
 
 jobs:
-  build:
-
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.5, 3.6, 3.7, 3.8]
-
+        python: [ 3.6, 3.7, 3.8, 3.9 ]
     steps:
-      - uses: actions/checkout@v2
+      - name: Check out code
+        uses: actions/checkout@v2
       - name: Setup Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python }}
-      - name: Install Tox and any other packages
-        run: pip install tox
-      - name: Run Tox
-        run: tox -e py  # Run tox using the version of Python in `PATH`
+      - name: Install Dependencies
+        run: |
+          pip install tox
+      - name: Run lint
+        run: tox -vve lint
+
+  unit-test:
+     name: Unit Tests
+     runs-on: ubuntu-latest
+     strategy:
+       matrix:
+         python: [3.6, 3.7, 3.8, 3.9]
+     steps:
+       - name: Check out code
+         uses: actions/checkout@v2
+       - name: Setup Python
+         uses: actions/setup-python@v2
+         with:
+           python-version: ${{ matrix.python }}
+       - name: Install Dependencies
+         run: |
+           pip install tox
+       - name: Run test
+         run: tox -e unit
+
+  integration-test-machine:
+    name: Integration test with LXD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Dependencies
+        run: |
+          pip install tox
+          sudo snap install charmcraft --beta
+      - name: Setup operator environment
+        uses: charmed-kubernetes/actions-operator@master
+      - name: Run test
+        run: tox -e integration -- --provider machine

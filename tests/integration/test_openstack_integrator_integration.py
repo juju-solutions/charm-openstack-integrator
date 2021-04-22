@@ -15,3 +15,15 @@ async def test_build_and_deploy(ops_test):
     )
     await ops_test.model.deploy(bundle, trust=True)
     await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
+
+
+async def test_status_messages(ops_test):
+    """Validate that the status messages are correct."""
+    expected_messages = {
+        "kubernetes-master": "Kubernetes master running.",
+        "kubernetes-worker": "Kubernetes worker running.",
+        "openstack-integrator": "Ready",
+    }
+    for app, message in expected_messages.items():
+        for unit in ops_test.model.applications[app].units:
+            assert unit.workload_status_message == message
