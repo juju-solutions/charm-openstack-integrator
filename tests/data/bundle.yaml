@@ -7,37 +7,65 @@ machines:
   '1':
     constraints: cores=4 mem=4G root-disk=16G
     series: {{ series }}
+  '2':
+    constraints: cores=2 mem=4G root-disk=16G
+    series: {{ series }}
 services:
   containerd:
     charm: cs:~containers/containerd
+    resources: {}
   easyrsa:
     charm: cs:~containers/easyrsa
     num_units: 1
+    resources:
+      easyrsa: 5
     to:
-    - '1'
+    - 'lxd:0'
   etcd:
     charm: cs:~containers/etcd
     num_units: 1
     options:
       channel: 3.4/stable
+    resources:
+      core: 0
+      etcd: 3
+      snapshot: 0
     to:
     - '0'
   flannel:
     charm: cs:~containers/flannel
   kubernetes-master:
     charm: cs:~containers/kubernetes-master
+    constraints: cores=2 mem=4G root-disk=16G
     expose: true
     num_units: 1
     options:
-      channel: 1.22/edge
+      channel: 1.21/stable
+    resources:
+      cdk-addons: 0
+      core: 0
+      kube-apiserver: 0
+      kube-controller-manager: 0
+      kube-proxy: 0
+      kube-scheduler: 0
+      kubectl: 0
     to:
     - '0'
   kubernetes-worker:
     charm: cs:~containers/kubernetes-worker
+    constraints: cores=4 mem=4G root-disk=16G
     expose: true
     num_units: 1
     options:
-      channel: 1.22/edge
+      channel: 1.21/stable
+    resources:
+      cni-amd64: 747
+      cni-arm64: 738
+      cni-s390x: 750
+      core: 0
+      kube-proxy: 0
+      kubectl: 0
+      kubelet: 0
     to:
     - '1'
   openstack-integrator:
@@ -45,7 +73,7 @@ services:
     num_units: 1
     trust: true
     to:
-    - '0'
+    - '2'
 
 relations:
 - - kubernetes-master:kube-api-endpoint
