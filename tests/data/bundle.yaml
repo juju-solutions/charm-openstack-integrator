@@ -47,6 +47,7 @@ services:
     - '1'
   openstack-integrator:
     charm: {{ master_charm }}
+    constraints: cores=2 mem=4G root-disk=16G
     num_units: 1
     trust: true
     to:
