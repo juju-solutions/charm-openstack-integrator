@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [ 3.6, 3.7, 3.8, 3.9 ]
+        python: [3.6, 3.7, 3.8, 3.9]
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -17,8 +17,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install Dependencies
-        run: |
-          pip install tox
+        run: pip install tox
       - name: Run lint
         run: tox -vve lint
 
@@ -36,8 +35,7 @@ jobs:
          with:
            python-version: ${{ matrix.python }}
        - name: Install Dependencies
-         run: |
-           pip install tox
+         run: pip install tox
        - name: Run test
          run: tox -e unit
 
