@@ -4,7 +4,7 @@ on: [push]
 
 jobs:
   lint:
-    name: Lint
+    name: Lint, Unit Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,27 +20,11 @@ jobs:
         run: pip install tox
       - name: Run lint
         run: tox -vve lint
-
-  unit-test:
-     name: Unit Tests
-     runs-on: ubuntu-latest
-     strategy:
-       matrix:
-         python: [3.6, 3.7, 3.8, 3.9]
-     steps:
-       - name: Check out code
-         uses: actions/checkout@v2
-       - name: Setup Python
-         uses: actions/setup-python@v2
-         with:
-           python-version: ${{ matrix.python }}
-       - name: Install Dependencies
-         run: pip install tox
-       - name: Run test
-         run: tox -e unit
+      - name: Run test
+        run: tox -e unit
 
   integration-test-machine:
-    name: Integration test with LXD
+    name: Integration test with Microstack
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
