@@ -48,12 +48,14 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
-      - name: Install Dependencies
-        run: |
-          pip install tox
-          sudo snap install charm
+          python-version: 3.9
       - name: Setup operator environment
         uses: charmed-kubernetes/actions-operator@master
+        with:
+          provider: microstack
+      - name: Create custum flavor
+        run: openstack flavor create --vcpus 4 --ram 4096 --disk 20 m2.medium
+      - name: source Microstack credentials
+        run: source /var/snap/microstack/common/etc/microstack.rc
       - name: Run test
-        run: tox -e integration -- --provider machine
+        run: tox -e integration
