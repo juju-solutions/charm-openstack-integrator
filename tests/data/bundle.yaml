@@ -8,7 +8,7 @@ machines:
     constraints: cores=4 mem=4G root-disk=16G
     series: {{ series }}
   '2':
-    constraints: cores=2 mem=4G root-disk=16G
+    constraints: cores=2 mem=2G root-disk=16G
     series: {{ series }}
 applications:
   containerd:
