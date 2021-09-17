@@ -186,7 +186,7 @@ class OpenStackError(Exception):
 
 class OpenStackLBError(OpenStackError):
     def __init__(self, action, exc=True):
-        action = action[:-1]+'ing'
+        action = action[:-1] + 'ing'
         if exc:
             log_err('Error {} loadbalancer\n{}', action, format_exc())
         super().__init__('Error while {} load balancer; '
