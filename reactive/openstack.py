@@ -54,9 +54,10 @@ def pre_series_upgrade():
 
 @when_not('charm.openstack.creds.set')
 def get_creds():
-    prev_creds = layer.openstack.get_user_credentials()
-    toggle_flag('charm.openstack.creds.set', layer.openstack.get_credentials())
-    creds = layer.openstack.get_user_credentials()
+    prev_creds = layer.openstack.get_credentials()
+    credentials_exist = layer.openstack.update_credentials()
+    toggle_flag('charm.openstack.creds.set', credentials_exist)
+    creds = layer.openstack.get_credentials()
     if creds != prev_creds:
         set_flag('charm.openstack.creds.changed')
 
@@ -97,7 +98,7 @@ def handle_requests():
     for request in requests:
         layer.status.maintenance(
             'Granting request for {}'.format(request.unit_name))
-        creds = layer.openstack.get_user_credentials()
+        creds = layer.openstack.get_credentials()
         request.set_credentials(**creds)
         request.set_lbaas_config(config['subnet-id'],
                                  config['floating-network-id'],

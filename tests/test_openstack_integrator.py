@@ -436,24 +436,24 @@ def test_series_upgrade():
     assert charms.layer.status.blocked.call_count == 1
 
 
-def test_get_credentials(_normalize_creds, _save_creds, log_err):
+def test_update_credentials(_normalize_creds, _save_creds, log_err):
     openstack.hookenv.config.return_value = config = {
         'credentials': None,
     }
     subprocess.run.side_effect = MockCalledProcessError(1, b'foo')
     with pytest.raises(MockCalledProcessError):
-        openstack.get_credentials()
+        openstack.update_credentials()
 
     subprocess.run.side_effect = MockCalledProcessError(1,
                                                         b'permission denied')
     _normalize_creds.side_effect = ValueError('unsupported auth-type')
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     status.blocked.assert_called_with('unsupported auth-type')
 
     _normalize_creds.reset_mock()
     status.blocked.reset_mock()
     subprocess.run.side_effect = FileNotFoundError()
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     status.blocked.assert_called_with('unsupported auth-type')
     assert _normalize_creds.call_args_list == [
         mock.call({'credentials': None}),
@@ -464,7 +464,7 @@ def test_get_credentials(_normalize_creds, _save_creds, log_err):
     _normalize_creds.side_effect = lambda a: a
     stdout = b'{}'
     subprocess.run.side_effect = lambda *a, **k: mock.Mock(stdout=stdout)
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     status.blocked.assert_called_with(
         'missing credentials; grant with `juju trust` or set via config')
     assert _normalize_creds.call_args_list == [
@@ -474,7 +474,7 @@ def test_get_credentials(_normalize_creds, _save_creds, log_err):
 
     _normalize_creds.reset_mock()
     stdout = b'{"foo": "bar"}'
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     assert _normalize_creds.call_args_list == [
         mock.call({'foo': 'bar'}),
         mock.call({'credentials': None}),
@@ -483,14 +483,14 @@ def test_get_credentials(_normalize_creds, _save_creds, log_err):
     status.blocked.reset_mock()
     subprocess.run.side_effect = FileNotFoundError()
     config['credentials'] = 'foo'
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     status.blocked.assert_called_with(
         'invalid value for credentials config: Incorrect padding')
 
     status.blocked.reset_mock()
     subprocess.run.side_effect = FileNotFoundError()
     config['credentials'] = 'ewo='
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     status.blocked.assert_called_with(
         'invalid value for credentials config: Expecting property name '
         'enclosed in double quotes: line 2 column 1 (char 2)')
@@ -498,7 +498,7 @@ def test_get_credentials(_normalize_creds, _save_creds, log_err):
     _normalize_creds.reset_mock()
     subprocess.run.side_effect = FileNotFoundError()
     config['credentials'] = 'eyJmb28iOiAiYmFyIn0K'
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     assert _normalize_creds.call_args_list == [
         mock.call({'foo': 'bar'}),
         mock.call({'credentials': 'eyJmb28iOiAiYmFyIn0K'}),
@@ -517,19 +517,19 @@ def test_get_credentials(_normalize_creds, _save_creds, log_err):
     expected = config.copy()
     del expected['credentials']
     expected['endpoint_tls_ca'] = ''
-    assert openstack.get_credentials() is True
+    assert openstack.update_credentials() is True
     _save_creds.assert_called_with(expected)
 
     _save_creds.reset_mock()
     status.blocked.reset_mock()
     config['region'] = ''
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     assert not _save_creds.called
     status.blocked.assert_called_with('missing required credential: region')
 
     status.blocked.reset_mock()
     config['username'] = ''
-    assert openstack.get_credentials() is False
+    assert openstack.update_credentials() is False
     status.blocked.assert_called_with('missing required credentials: '
                                       'region, username')
 
