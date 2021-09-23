@@ -39,9 +39,9 @@ def log_err(msg, *args):
     hookenv.log(msg.format(*args), hookenv.ERROR)
 
 
-def get_credentials():
+def update_credentials():
     """
-    Get the credentials from either the config or the hook tool.
+    Update the credentials from either the config or the hook tool.
 
     Prefers the config so that it can be overridden.
     """
@@ -124,7 +124,7 @@ def get_credentials():
         return False
 
 
-def get_user_credentials():
+def get_credentials():
     return _load_creds()
 
 
@@ -180,7 +180,7 @@ class OpenStackError(Exception):
 
 class OpenStackLBError(OpenStackError):
     def __init__(self, action, exc=True):
-        action = action[:-1]+'ing'
+        action = action[:-1] + 'ing'
         if exc:
             log_err('Error {} loadbalancer\n{}', action, format_exc())
         super().__init__('Error while {} load balancer; '
