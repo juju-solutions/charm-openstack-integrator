@@ -1,0 +1,2 @@
+refresh-credentials:
+  description: Force the charm to recheck cloud credentials

@@ -7,6 +7,7 @@ from charms.reactive import (
     when_not,
     is_flag_set,
     toggle_flag,
+    set_flag,
     clear_flag,
 )
 from charms.reactive.relations import endpoint_from_name
@@ -40,6 +41,12 @@ def upgrade_charm():
     clear_flag('charm.openstack.creds.set')
 
 
+@hook('update-status')
+def update_status():
+    # need to recheck creds in case the credentials from Juju have changed
+    clear_flag('charm.openstack.creds.set')
+
+
 @hook('pre-series-upgrade')
 def pre_series_upgrade():
     layer.status.blocked('Series upgrade in progress')
@@ -47,7 +54,12 @@ def pre_series_upgrade():
 
 @when_not('charm.openstack.creds.set')
 def get_creds():
-    toggle_flag('charm.openstack.creds.set', layer.openstack.get_credentials())
+    prev_creds = layer.openstack.get_credentials()
+    credentials_exist = layer.openstack.update_credentials()
+    toggle_flag('charm.openstack.creds.set', credentials_exist)
+    creds = layer.openstack.get_credentials()
+    if creds != prev_creds:
+        set_flag('charm.openstack.creds.changed')
 
 
 @when_all('snap.installed.openstackclients',
@@ -62,7 +74,7 @@ def no_requests():
           'charm.openstack.creds.set',
           'endpoint.clients.joined')
 @when_any('endpoint.clients.requests-pending',
-          'config.changed')
+          'config.changed', 'charm.openstack.creds.changed')
 @when_not('upgrade.series.in-progress')
 def handle_requests():
     layer.status.maintenance('Granting integration requests')
@@ -80,11 +92,13 @@ def handle_requests():
     except AttributeError:
         # in case manage_security_groups is already bool
         manage_security_groups = config['manage-security-groups']
-    requests = clients.all_requests if config_change else clients.new_requests
+    creds_changed = is_flag_set('charm.openstack.creds.changed')
+    refresh_requests = config_change or creds_changed
+    requests = clients.all_requests if refresh_requests else clients.new_requests
     for request in requests:
         layer.status.maintenance(
             'Granting request for {}'.format(request.unit_name))
-        creds = layer.openstack.get_user_credentials()
+        creds = layer.openstack.get_credentials()
         request.set_credentials(**creds)
         request.set_lbaas_config(config['subnet-id'],
                                  config['floating-network-id'],
@@ -103,6 +117,7 @@ def handle_requests():
             _or_none(config.get('ignore-volume-az')))
         layer.openstack.log('Finished request for {}', request.unit_name)
     clients.mark_completed()
+    clear_flag('charm.openstack.creds.changed')
 
 
 @when_all('charm.openstack.creds.set',
@@ -131,7 +146,10 @@ def create_or_update_loadbalancers():
         layer.status.blocked(str(e))
 
 
-@hook('stop')
+@hook("stop")
 def cleanup():
-    # TODO: Also clean up removed LBs as they go away
-    layer.openstack.cleanup()
+    layer.status.maintenance("Cleaning load balancers")
+    for _, cached_info in layer.openstack.get_all_cached_lbs().items():
+        lb = layer.openstack.LoadBalancer.load_from_cached(cached_info)
+        lb.delete()
+        hookenv.log("loadbalancer '{}' was deleted".format(lb.name))
