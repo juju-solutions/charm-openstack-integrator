@@ -34,7 +34,7 @@ jobs:
         with:
           python-version: 3.9
       - name: Setup operator environment
-        uses: charmed-kubernetes/actions-operator@master
+        uses: charmed-kubernetes/actions-operator@main
         with:
           provider: microstack
       - name: Create custum flavor to save resources
