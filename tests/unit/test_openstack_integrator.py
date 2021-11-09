@@ -214,8 +214,8 @@ def test_get_or_create(create, cms, ams, kv):
         openstack.LoadBalancer.get_or_create(*args)
 
 
-def test_create_new(impl, log_err):
-    openstack.kv().get.return_value = None
+def test_create_new(impl, log_err, kv):
+    kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', None, False)
     assert not lb.is_created
     impl.list_loadbalancers.return_value = []
@@ -272,8 +272,8 @@ def test_create_new(impl, log_err):
     impl.create_fip.assert_called_with('1.1.1.1', '4321')
 
 
-def test_create_recover(impl):
-    openstack.kv().get.return_value = None
+def test_create_recover(impl, kv):
+    kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', 'net', True)
     impl.list_loadbalancers.return_value = [
         {'name': 'openstack-integrator-1234-app'}]
@@ -306,8 +306,8 @@ def test_create_recover(impl):
     assert not impl.create_fip.called
 
 
-def test_load_from_cache(impl):
-    openstack.kv().get.return_value = cached_info = {
+def test_load_from_cache(impl, kv):
+    kv().get.return_value = cached_info = {
         "app_name": "app", "port": "80", "subnet": "subnet",
         "algorithm": "alg", "fip_net": "net", "manage_secgrps": False,
         "sg_id": None, "fip": "4.4.4.4", "address": "1.1.1.1", "members": []
@@ -331,11 +331,9 @@ def test_load_from_cache(impl):
     impl.find_secgrp.assert_called_with(
         "openstack-integrator-1234-app-members")
 
-    openstack.kv().get.reset_mock()
 
-
-def test_delete_loadbalancer(impl):
-    openstack.kv().get.return_value = None
+def test_delete_loadbalancer(impl, kv):
+    kv().get.return_value = None
     lb = openstack.LoadBalancer('app', '80', 'subnet', 'alg', 'net', True)
     lb.delete()
 
