@@ -23,4 +23,7 @@ resources:
   openstackclients:
     type: file
     filename: openstackclients.snap
-    description: Resource to side-load openstackclients snap in network-restricted deployments.
+    description: |
+      Resource to side-load openstackclients snap in network-restricted deployments.
+      [DEPRECATED] in favor of using a Snap Store Proxy.
+      See https://ubuntu.com/kubernetes/docs/proxies for more details.
