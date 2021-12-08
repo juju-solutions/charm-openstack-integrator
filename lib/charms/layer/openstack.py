@@ -138,9 +138,10 @@ def detect_octavia():
         creds = _load_creds()
         region = creds['region']
         for catalog in _openstack('catalog', 'list'):
-            if (catalog['Name'] == 'octavia' and catalog.get('Endpoints')
-                    and catalog['Endpoints'][0]['region'] == region):
-                return True
+            if catalog['Name'] == 'octavia':
+                for endpoint in catalog.get('Endpoints', []):
+                    if endpoint['region'] == region:
+                        return True
     except Exception:
         log_err('Error while trying to detect Octavia\n{}', format_exc())
         return False
