@@ -31,7 +31,7 @@ applications:
   flannel:
     charm: cs:~containers/flannel
     channel: edge
-  kubernetes-master:
+  kubernetes-control-plane:
     charm: cs:~containers/kubernetes-master
     channel: edge
     constraints: cores=4 mem=4G root-disk=16G
@@ -60,13 +60,13 @@ applications:
     - '2'
 
 relations:
-- - kubernetes-master:kube-api-endpoint
+- - kubernetes-control-plane:kube-api-endpoint
   - kubernetes-worker:kube-api-endpoint
-- - kubernetes-master:kube-control
+- - kubernetes-control-plane:kube-control
   - kubernetes-worker:kube-control
-- - kubernetes-master:certificates
+- - kubernetes-control-plane:certificates
   - easyrsa:client
-- - kubernetes-master:etcd
+- - kubernetes-control-plane:etcd
   - etcd:db
 - - kubernetes-worker:certificates
   - easyrsa:client
@@ -75,14 +75,14 @@ relations:
 - - flannel:etcd
   - etcd:db
 - - flannel:cni
-  - kubernetes-master:cni
+  - kubernetes-control-plane:cni
 - - flannel:cni
   - kubernetes-worker:cni
 - - containerd:containerd
   - kubernetes-worker:container-runtime
 - - containerd:containerd
-  - kubernetes-master:container-runtime
+  - kubernetes-control-plane:container-runtime
 - - openstack-integrator:clients
-  - kubernetes-master:openstack
+  - kubernetes-control-plane:openstack
 - - openstack-integrator:clients
   - kubernetes-worker:openstack
