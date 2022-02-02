@@ -734,8 +734,8 @@ class BaseLBImpl:
 
     def find_port(self, address):
         return _openstack('port', 'list', '--fixed-ip',
-                          'ip-address={}'.format(address), '-c', 'ID', '-f',
-                          'value', yaml_output=False)
+                          'subnet={},ip-address={}'.format(self.subnet, address),
+                          '-c', 'ID', '-f', 'value', yaml_output=False)
 
     def get_subnet_cidr(self, name):
         return _openstack('subnet', 'show', name, '-c', 'cidr', '-f', 'value',
