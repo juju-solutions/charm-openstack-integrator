@@ -586,6 +586,9 @@ class LoadBalancer:
         Add or remove members to the load balancer to match the given set.
         """
         members = set(members)
+        # prime the members cache before update of pre-existing LB lp#1959720
+        if not self.members:
+            self.members = self._impl.list_members()
         if self.members == members:
             return
 
@@ -734,8 +737,8 @@ class BaseLBImpl:
 
     def find_port(self, address):
         return _openstack('port', 'list', '--fixed-ip',
-                          'ip-address={}'.format(address), '-c', 'ID', '-f',
-                          'value', yaml_output=False)
+                          'subnet={},ip-address={}'.format(self.subnet, address),
+                          '-c', 'ID', '-f', 'value', yaml_output=False)
 
     def get_subnet_cidr(self, name):
         return _openstack('subnet', 'show', name, '-c', 'cidr', '-f', 'value',
@@ -834,7 +837,9 @@ class OctaviaLBImpl(BaseLBImpl):
         _openstack('loadbalancer', 'pool', 'delete', self.name)
 
     def list_members(self):
-        return {(m['address'], m['protocol_port'])
+        # use of "str" wrapper for the port values matches incoming port values
+        # from charm.  Strings are required for Openstack API compatibility.
+        return {(m['address'], str(m['protocol_port']))
                 for m in _openstack('loadbalancer', 'member',
                                     'list', self.name)}
 
@@ -914,7 +919,9 @@ class NeutronLBImpl(BaseLBImpl):
         _neutron('lbaas-pool-delete', self.name)
 
     def list_members(self):
-        return {(m['address'], m['protocol_port'])
+        # use of "str" wrapper for the port values matches incoming values
+        # from charm.  Strings are required for Openstack API compatibility.
+        return {(m['address'], str(m['protocol_port']))
                 for m in _neutron('lbaas-member-list', self.name)}
 
     def create_member(self, member):
