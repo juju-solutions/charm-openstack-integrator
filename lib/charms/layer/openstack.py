@@ -529,6 +529,21 @@ class LoadBalancer:
         if self.is_port_sec_enabled:
             self._create_member_sg()
 
+        lb_healthmonitor_info = self._find(
+            'loadbalancer healthmonitors',
+            self._impl.list_healthmonitors()
+        )
+        if lb_healthmonitor_info:
+            log('Found loadbalancer healthmonitor: {}', lb_healthmonitor_info)
+        else:
+            lb_healthmonitor_info = self._impl.create_healthmonitor()
+            # check if created; some backends don't support it
+            if lb_healthmonitor_info:
+                log(
+                    'Created loadbalancer healthmonitor {} ({})',
+                    self.name, lb_healthmonitor_info['id']
+                )
+
         self._update_cached_info()
         self.is_created = True
 
@@ -786,6 +801,12 @@ class BaseLBImpl:
     def delete_member(self, member):
         raise NotImplementedError()
 
+    def create_healthmonitor(self):
+        raise NotImplementedError()
+
+    def list_healthmonitors(self) -> list:
+        raise NotImplementedError()
+
 
 class OctaviaLBImpl(BaseLBImpl):
     """
@@ -856,6 +877,28 @@ class OctaviaLBImpl(BaseLBImpl):
         addr, _ = member
         _openstack('loadbalancer', 'member', 'delete', self.name, addr,
                    yaml_output=False)
+
+    def create_healthmonitor(self):
+        """
+        Create an opinionated health monitor
+        designed to monitor the kubernetes master service.
+        Don't need a 'delete_healthmonitor',
+        because this will be cleaned up by openstack automatically on lb deletion.
+        """
+        return _openstack(
+            'loadbalancer',
+            'healthmonitor',
+            'create',
+            '--delay', '5',
+            '--max-retries', '4',
+            '--timeout', '10',
+            '--type', 'TLS-HELLO',
+            '--name', self.name,
+            self.name
+        )
+
+    def list_healthmonitors(self) -> list:
+        return _openstack('loadbalancer', 'healthmonitor', 'list')
 
 
 class NeutronLBImpl(BaseLBImpl):
@@ -936,3 +979,11 @@ class NeutronLBImpl(BaseLBImpl):
     def delete_member(self, member):
         addr, _ = member
         _neutron('lbaas-member-delete', addr, self.name)
+
+    def create_healthmonitor(self):
+        """not implemented for neutron"""
+        return
+
+    def list_healthmonitors(self) -> list:
+        """not implemented for neutron"""
+        return []
