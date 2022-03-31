@@ -227,6 +227,8 @@ def test_create_new(impl, log_err, kv):
     impl.find_secgrp.side_effect = ['sg_id', 'member_sg_id']
     impl.list_listeners.return_value = []
     impl.list_pools.return_value = []
+    impl.list_healthmonitors.return_value = []
+    impl.create_healthmonitor.return_value = {'id': '1234'}
     impl.list_members.return_value = [('member', '6443')]
     impl.list_sg_rules.return_value = []
     impl.get_port_sec_enabled.return_value = True
@@ -281,6 +283,8 @@ def test_create_recover(impl, kv):
                                            'provisioning_status': 'ACTIVE',
                                            'vip_address': '1.1.1.1',
                                            'vip_port_id': '4321'}
+    impl.list_healthmonitors.return_value = [{'name': 'openstack-integrator-1234-app'}]
+    impl.create_healthmonitor.return_value = {'id': '1234'}
     impl.find_secgrp.return_value = 'sg_id'
     impl.list_sg_rules.return_value = [{'Port Range': '', 'IP Range': ''}]
     impl.get_port_sec_enabled.return_value = False
@@ -304,6 +308,7 @@ def test_create_recover(impl, kv):
     assert not impl.create_listener.called
     assert not impl.create_pool.called
     assert not impl.create_fip.called
+    assert not impl.create_healthmonitor.called
 
 
 def test_load_from_cache(impl, kv):
@@ -440,6 +445,7 @@ def test_update_members(impl, _openstack):
 
     impl.delete_member.side_effect = AssertionError('should not be called')
     impl.create_member.side_effect = subprocess.CalledProcessError(1, 'cmd')
+    impl.list_members.return_value = set()
     lb.members = set()
     with pytest.raises(openstack.OpenStackLBError):
         lb.update_members({(1, 2)})
