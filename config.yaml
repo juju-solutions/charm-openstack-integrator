@@ -136,3 +136,9 @@ options:
       will use the upstream default.
     type: boolean
     default: null
+  internal-lb:
+    description: |
+      Determines whether or not to create an internal load balancer
+      (no floating IP) by default.
+    type: boolean
+    default: false
