@@ -6,6 +6,7 @@ description: |
   This charm can grant select permissions to instances of applications
   related to it which enable integration with OpenStack specific features,
   such as firewalls, load balancing, block storage, object storage, etc.
+docs: https://discourse.charmhub.io/t/openstack-integrator-docs-index/6093
 maintainers: ['Cory Johns <cory.johns@canonical.com>']
 series:
   - focal
