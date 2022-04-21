@@ -33,11 +33,12 @@ jobs:
         with:
           python-version: 3.9
       - name: Setup operator environment
-        uses: charmed-kubernetes/actions-operator@main
+        uses: r-f-g/actions-operator@fix/microstack-TLS
         with:
           provider: microstack
       - name: Create custom flavor to save resources
-        run: openstack flavor show m2.medium || openstack flavor create --vcpus 4 --ram 4096 --disk 20 m2.medium
+        run: |
+          openstack flavor show m2.medium || openstack flavor create --vcpus 2 --ram 4096 --disk 16 m2.medium
       - name: source Microstack credentials
         run: source /var/snap/microstack/common/etc/microstack.rc
       - name: Run test
