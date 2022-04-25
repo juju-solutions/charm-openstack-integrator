@@ -104,7 +104,8 @@ def handle_requests():
                                  config['floating-network-id'],
                                  config['lb-method'],
                                  manage_security_groups,
-                                 has_octavia)
+                                 has_octavia,
+                                 internal_lb=config['internal-lb'])
 
         def _or_none(val):
             if val in (None, '', 'null'):
