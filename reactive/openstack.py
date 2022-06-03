@@ -1,7 +1,9 @@
 from distutils.util import strtobool
 from charmhelpers.core import hookenv
+from charmhelpers.contrib.charmsupport import nrpe
 from charms.reactive import (
     hook,
+    when,
     when_all,
     when_any,
     when_not,
@@ -10,7 +12,10 @@ from charms.reactive import (
     set_flag,
     clear_flag,
 )
+
 from charms.reactive.relations import endpoint_from_name
+
+import nrpe_helpers
 
 from charms import layer
 
@@ -43,6 +48,9 @@ def upgrade_charm():
 
 @hook('update-status')
 def update_status():
+    if is_flag_set("nrpe-external-master.bad-config"):
+        return
+
     # need to recheck creds in case the credentials from Juju have changed
     clear_flag('charm.openstack.creds.set')
 
@@ -66,6 +74,7 @@ def get_creds():
           'charm.openstack.creds.set')
 @when_not('endpoint.clients.requests-pending')
 @when_not('upgrade.series.in-progress')
+@when_not("nrpe-external-master.bad-config")
 def no_requests():
     layer.status.active('Ready')
 
@@ -154,3 +163,47 @@ def cleanup():
         lb = layer.openstack.LoadBalancer.load_from_cached(cached_info)
         lb.delete()
         hookenv.log("loadbalancer '{}' was deleted".format(lb.name))
+
+
+@when("nrpe-external-master.available")
+@when_not("nrpe-external-master.initial-config")
+def initial_nrpe_config():
+    set_flag("nrpe-external-master.initial-config")
+    hookenv.log("nrpe-external-master initial configuration")
+    update_nrpe_config(initialization=True)
+
+
+@when("nrpe-external-master.available")
+@when_any("config.changed.nagios_context",
+          "config.changed.nagios_servicegroups",
+          "nrpe-external-master.reconfigure",
+          *nrpe_helpers.NRPE_CONFIG_FLAGS_CHANGED)
+def update_nrpe_config(initialization=False):
+    """Set up all NRPE checks."""
+    if layer.openstack.validate_nrpe_configuration():
+        clear_flag("nrpe-external-master.bad-config")
+    else:
+        set_flag("nrpe-external-master.bad-config")
+        layer.status.blocked("bad NRPE configuration (more info in logs)")
+        return
+
+    hostname = nrpe.get_nagios_hostname()
+    nrpe_setup = nrpe.NRPE(hostname=hostname)
+    layer.openstack.write_nagios_openstack_cnf()
+    layer.nagios.install_nagios_plugin_from_file(
+        "files/nagios/plugins/check_openstack_interface.py",
+        nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
+    layer.openstack.update_nrpe_checks_os_interfaces(nrpe_setup, initialization)
+    hookenv.log("NRPE checks were updated.", level=hookenv.DEBUG)
+
+
+@when_not("nrpe-external-master.available")
+@when("nrpe-external-master.initial-config")
+def remove_nrpe_config():
+    """Remove all NRPE checks and related scripts."""
+    hostname = nrpe.get_nagios_hostname()
+    nrpe_setup = nrpe.NRPE(hostname=hostname)
+    layer.openstack.remove_nrpe_checks_os_interface(nrpe_setup)
+    layer.openstack.remove_nagios_openstack_cnf()
+    clear_flag("nrpe-external-master.initial-config")
+    hookenv.log("NRPE checks was removed.", level=hookenv.DEBUG)

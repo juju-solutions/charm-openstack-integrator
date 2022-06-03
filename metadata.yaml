@@ -20,6 +20,9 @@ provides:
     interface: keystone-credentials
   loadbalancer:
     interface: public-address
+  nrpe-external-master:
+    interface: nrpe-external-master
+    scope: container
 resources:
   openstackclients:
     type: file

@@ -15,8 +15,12 @@ import yaml
 
 from charmhelpers.core import hookenv
 from charmhelpers.core.unitdata import kv
+from charmhelpers.core.templating import render
+
+import nrpe_helpers
 
 from charms.layer import status
+from charms.layer.nagios import NAGIOS_PLUGINS_DIR, remove_nagios_plugin
 
 
 CACHED_LB_PREFIX = "created_lbs"
@@ -25,6 +29,7 @@ CACHED_LB_PREFIX = "created_lbs"
 # during normal hook execution, it's /root. Set it here to be consistent.
 os.environ['HOME'] = '/root'
 
+OPENSTACK_NAGIOS_CREDENTIAL_FILE = "/etc/nagios/openstack.cnf"
 CA_CERT_FILE = Path('/var/snap/openstackclients/common/ca.crt')
 MODEL_UUID = os.environ['JUJU_MODEL_UUID']
 MODEL_SHORT_ID = MODEL_UUID.split('-')[-1]
@@ -272,8 +277,13 @@ def _load_creds():
     return kv().get('charm.openstack.full-creds')
 
 
-def _run_with_creds(*args):
-    creds = _load_creds()
+def _get_creds_env(creds):
+    """Get environment variables from credentials.
+
+    :returns: dictionary contain all environment variables parsed from
+              credentials
+    :rtype: Dict[str, str]
+    """
     env = {
         'PATH': os.pathsep.join(['/snap/bin', os.environ['PATH']]),
         'OS_AUTH_URL': creds['auth_url'],
@@ -295,6 +305,12 @@ def _run_with_creds(*args):
     if CA_CERT_FILE.exists():
         env['OS_CACERT'] = str(CA_CERT_FILE)
 
+    return env
+
+
+def _run_with_creds(*args):
+    creds = _load_creds()
+    env = _get_creds_env(creds)
     result = subprocess.run(args,
                             env=env,
                             check=True,
@@ -987,3 +1003,142 @@ class NeutronLBImpl(BaseLBImpl):
     def list_healthmonitors(self) -> list:
         """not implemented for neutron"""
         return []
+
+
+def write_nagios_openstack_cnf():
+    """Create a OpenStack configuration file with nagios user credentials."""
+    creds = _load_creds()
+    env = _get_creds_env(creds)
+    render("nagios-openstack.cnf", OPENSTACK_NAGIOS_CREDENTIAL_FILE, env,
+           owner="nagios", group="nagios", perms=0o640)
+    return OPENSTACK_NAGIOS_CREDENTIAL_FILE
+
+
+def remove_nagios_openstack_cnf():
+    """Remove a OpenStack configuration file with nagios user credentials."""
+    if os.path.exists(OPENSTACK_NAGIOS_CREDENTIAL_FILE):
+        os.remove(OPENSTACK_NAGIOS_CREDENTIAL_FILE)
+
+
+def create_nrpe_check_cmd(check):
+    """Crete cmd command for checking OpenStack IDs.
+
+    :param check: Definition NRPE check for OpenStack interface
+    :type check: nrpe_helpers.NrpeCheck
+    :returns: NRPE check CMD
+    :rtype: string
+    :raise ValueError: if the IDs is set to "all" and is not supported
+                       if skip IDs are set, but without IDs set to "all"
+    """
+    value_ids = config.get(check.config) or ""
+    value_skip_ids = config.get(check.config_skip) or ""
+    ids = [i for i in value_ids.split(",") if i]  # remove empty string
+    skip_ids = [i for i in value_skip_ids.split(",") if i]
+    script = os.path.join(
+        NAGIOS_PLUGINS_DIR, nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
+    cmd = "{} {} -c {}".format(
+        script, check.interface, OPENSTACK_NAGIOS_CREDENTIAL_FILE)
+
+    if "all" in ids:
+        cmd += " --all"
+        cmd += "".join([" --skip-id {}".format(i) for i in skip_ids])
+    else:
+        cmd += "".join([" --id {}".format(i) for i in ids])
+
+    return cmd
+
+
+def validate_nrpe_configuration():
+    """Validate values configure for NRPE checks."""
+    valid = True
+    for check in nrpe_helpers.NRPE_CHECKS:
+        if config.get(check.config) == "all" and not check.all:
+            hookenv.log("value 'all' is not supported with '{}'"
+                        "".format(check.config), hookenv.WARNING)
+            valid = False
+
+        if config.get(check.config_skip) == "all":
+            hookenv.log("value 'all' is not supported with '{}'"
+                        "".format(check.config_skip), hookenv.WARNING)
+            valid = False
+
+        if config.get(check.config_skip) and config.get(check.config) != "all":
+            hookenv.log("'{}' option is not allowed with '{}' option not set "
+                        "to 'all'".format(check.config_skip, check.config),
+                        hookenv.WARNING)
+            valid = False
+
+    return valid
+
+
+def add_nrpe_check(nrpe_setup, cmd, check):
+    """Help function to add NRPE check.
+
+    :param nrpe_setup: NPRE object management checks
+    :type nrpe_setup: charmhelpers.contrib.charmsupport.nrpe.NRPE
+    :param cmd: CMD of NRPE check
+    :type cmd: str
+    :param check: NRPE check definition
+    :type check: NrpeCheck
+    """
+    description = "Check {}s: {}".format(check.interface, config.get(check.config))
+    if check.config_skip and config.get(check.config_skip):
+        description += " (skips: {})".format(config.get(check.config_skip))
+
+    nrpe_setup.add_check(
+        shortname=check.name, description=description, check_cmd=cmd)
+    hookenv.log("NRPE check {} was added.".format(check.name), level=hookenv.DEBUG)
+
+
+def remove_nrpe_check(nrpe_setup, cmd, check):
+    """Help function to remove NRPE check.
+
+    :param nrpe_setup: NPRE object management checks
+    :type nrpe_setup: charmhelpers.contrib.charmsupport.nrpe.NRPE
+    :param cmd: CMD of NRPE check
+    :type cmd: str
+    :param check: NRPE check definition
+    :type check: NrpeCheck
+    """
+    try:
+        nrpe_setup.remove_check(shortname=check.name, description="", check_cmd=cmd)
+        hookenv.log("NRPE check {} was removed".format(check.name), level=hookenv.DEBUG)
+    except FileNotFoundError:
+        hookenv.log("NRPE check {} was not found.".format(check.name),
+                    level=hookenv.DEBUG)
+
+
+def update_nrpe_checks_os_interfaces(nrpe_setup, initialization):
+    """Update NRPE checks for OpenStack interfaces.
+
+    :param nrpe_setup: NPRE object management checks
+    :type nrpe_setup: charmhelpers.contrib.charmsupport.nrpe.NRPE
+    :param initialization: flag if checks are initialized for the first time
+    :type initialization: bool
+    """
+    for check in nrpe_helpers.NRPE_CHECKS:
+        cmd = create_nrpe_check_cmd(check)
+        create_or_update_check = (config.changed(check.config)
+                                  or config.changed(check.config_skip)
+                                  or initialization)
+        if create_or_update_check and config.get(check.config):  # add/update
+            add_nrpe_check(nrpe_setup, cmd, check)
+        elif not config.get(check.config):  # remove
+            remove_nrpe_check(nrpe_setup, cmd, check)
+
+    nrpe_setup.write()
+
+
+def remove_nrpe_checks_os_interface(nrpe_setup):
+    """Remove NRPE checks for OpenStack interfaces.
+
+    :param nrpe_setup: NPRE object management checks
+    :type nrpe_setup: charmhelpers.contrib.charmsupport.nrpe.NRPE
+    """
+    for check in nrpe_helpers.NRPE_CHECKS:
+        if config.get(check.config):
+            cmd = create_nrpe_check_cmd(check)
+            remove_nrpe_check(nrpe_setup, cmd, check)
+
+    nrpe_setup.write()
+    remove_nagios_plugin(nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
