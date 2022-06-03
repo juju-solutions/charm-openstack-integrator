@@ -50,8 +50,7 @@ class Results:
 
     @property
     def messages(self):
-        return [message for _, message
-                in sorted(self._messages, reverse=True)]
+        return [message for _, message in sorted(self._messages, reverse=True)]
 
     @property
     def count(self):
