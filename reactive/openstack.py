@@ -152,6 +152,8 @@ def create_or_update_loadbalancers():
             lb = layer.openstack.manage_loadbalancer(request.application_name,
                                                      request.members)
             request.set_address_port(lb.fip or lb.address, lb.port)
+
+        set_flag("loadbalancers.changed")
     except layer.openstack.OpenStackError as e:
         layer.status.blocked(str(e))
 
@@ -190,10 +192,18 @@ def update_nrpe_config(initialization=False):
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
     layer.openstack.write_nagios_openstack_cnf()
+    # checks for OS interfaces
     layer.nagios.install_nagios_plugin_from_file(
         "files/nagios/plugins/check_openstack_interface.py",
         nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
     layer.openstack.update_nrpe_checks_os_interfaces(nrpe_setup, initialization)
+    # checks for OS LBs
+    layer.nagios.install_nagios_plugin_from_file(
+        "files/nagios/plugins/check_openstack_loadbalancer.py",
+        nrpe_helpers.NRPE_OPENSTACK_LOADBALANCER)
+    layer.openstack.update_nrpe_checks_os_loadbalancer(nrpe_setup)
+
+    clear_flag("loadbalancers.changed")
     hookenv.log("NRPE checks were updated.", level=hookenv.DEBUG)
 
 
@@ -203,7 +213,12 @@ def remove_nrpe_config():
     """Remove all NRPE checks and related scripts."""
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
+    # remove checks for OS interfaces
     layer.openstack.remove_nrpe_checks_os_interface(nrpe_setup)
+    # remove checks for OS LBs
+    layer.openstack.remove_nrpe_checks_os_loadbalancer(nrpe_setup)
     layer.openstack.remove_nagios_openstack_cnf()
+
+    clear_flag("loadbalancers.changed")
     clear_flag("nrpe-external-master.initial-config")
     hookenv.log("NRPE checks was removed.", level=hookenv.DEBUG)

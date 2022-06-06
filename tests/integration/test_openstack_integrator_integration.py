@@ -1,4 +1,5 @@
 import logging
+import os
 
 import pytest
 
@@ -146,3 +147,18 @@ async def test_run_check(ops_test):
     for machine in status.get("machines", {}).values():
         exp_alert = "server '{}' is in ACTIVE status".format(machine.instance_id)
         assert exp_alert in check_output
+
+
+async def test_run_lb_check(ops_test):
+    """Test run check-openstack-loadbalancer."""
+    if not os.environ.get("TEST_LB_ID"):
+        pytest.skip("no test loadbalancer ID provided")
+
+    nrpe_unit = ops_test.model.applications["nrpe"].units[0]
+    action = await nrpe_unit.run_action("run-nrpe-check",
+                                        name="check-openstack-loadbalancers")
+    result = await action.wait()  # wait for result
+    check_output = result.data.get("results", {}).get("check-output")
+    lb_ids = os.environ.get("TEST_LB_ID", "").split(",")
+    for lb_id in lb_ids:
+        assert "{} (ONLINE, ACTIVE)".format(lb_id) in check_output

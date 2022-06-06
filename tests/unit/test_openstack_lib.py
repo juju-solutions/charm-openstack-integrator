@@ -613,15 +613,15 @@ def test_normalize_creds(_determine_version, log_err):
 
 @pytest.mark.parametrize("config, check, exp_cmd", [
     ({"nrpe-network-ids": "all"},
-     nrpe_helpers.NRPE_CHECKS[2],
+     nrpe_helpers.NRPE_BASE_OS_CHECKS[2],
      "/tmp/check_openstack_interface.py network -c "
      "/etc/nagios/openstack.cnf --all"),
     ({"nrpe-network-ids": "all", "nrpe-skip-network-ids": "1,2"},
-     nrpe_helpers.NRPE_CHECKS[2],
+     nrpe_helpers.NRPE_BASE_OS_CHECKS[2],
      "/tmp/check_openstack_interface.py network -c "
      "/etc/nagios/openstack.cnf --all --skip-id 1 --skip-id 2"),
     ({"nrpe-network-ids": "1,2,3"},
-     nrpe_helpers.NRPE_CHECKS[2],
+     nrpe_helpers.NRPE_BASE_OS_CHECKS[2],
      "/tmp/check_openstack_interface.py network -c "
      "/etc/nagios/openstack.cnf --id 1 --id 2 --id 3"),
 
@@ -702,6 +702,7 @@ def test_update_nrpe_checks_os_interfaces():
 def test_remove_nrpe_checks_os_interface():
     nrpe_setup = MagicMock()
     openstack.config = MagicMock()
+    charms.layer.nagios.reset_mock()
     openstack.config.get.side_effect = {"subnet-id": "1", "nrpe-network-ids": "all"}.get
 
     openstack.remove_nrpe_checks_os_interface(nrpe_setup)
@@ -716,3 +717,51 @@ def test_remove_nrpe_checks_os_interface():
                        "openstack.cnf --all"),
     ])
     nrpe_setup.write.assert_called_once_with()
+    charms.layer.nagios.remove_nagios_plugin.assert_called_once_with(
+        "check_openstack_interface.py")
+
+
+@mock.patch.object(openstack, "get_all_loadbalancer")
+def test_update_nrpe_checks_os_loadbalancer(mock_get_lbs):
+    nrpe_setup = MagicMock()
+
+    # no LBs
+    mock_get_lbs.return_value = []
+
+    openstack.update_nrpe_checks_os_loadbalancer(nrpe_setup)
+    nrpe_setup.remove_check.assert_called_once_with(
+        shortname="openstack_loadbalancers",
+        description="",
+        check_cmd="/tmp/check_openstack_loadbalancer.py -c /etc/nagios/openstack.cnf"
+    )
+    nrpe_setup.add_check.assert_not_called()
+    nrpe_setup.write.assert_called_once_with()
+    nrpe_setup.reset_mock()
+
+    # multiple LBs
+    mock_get_lbs.return_value = ["1", "2", "3"]
+
+    openstack.update_nrpe_checks_os_loadbalancer(nrpe_setup)
+    nrpe_setup.remove_check.assert_not_called()
+    nrpe_setup.add_check.assert_called_once_with(
+        shortname="openstack_loadbalancers",
+        description="Check loadbalancers: 1,2,3",
+        check_cmd="/tmp/check_openstack_loadbalancer.py -c /etc/nagios/openstack.cnf"
+                  " --name 1 --name 2 --name 3"
+    )
+    nrpe_setup.write.assert_called_once_with()
+
+
+def test_remove_nrpe_checks_os_loadbalancer():
+    nrpe_setup = MagicMock()
+    charms.layer.nagios.reset_mock()
+
+    openstack.remove_nrpe_checks_os_loadbalancer(nrpe_setup)
+    nrpe_setup.remove_check.assert_called_once_with(
+        shortname="openstack_loadbalancers",
+        description="",
+        check_cmd="/tmp/check_openstack_loadbalancer.py -c /etc/nagios/openstack.cnf"
+    )
+    nrpe_setup.write.assert_called_once_with()
+    charms.layer.nagios.remove_nagios_plugin.assert_called_once_with(
+        "check_openstack_loadbalancer.py")

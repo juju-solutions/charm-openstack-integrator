@@ -9,7 +9,7 @@ import collections
 NrpeCheck = collections.namedtuple(
     "NRPE_CHECK", "name interface config config_skip all")
 
-NRPE_CHECKS = [
+NRPE_BASE_OS_CHECKS = [
     NrpeCheck("kubernetes_subnet", "subnet", "subnet-id", None, False),
     NrpeCheck("kubernetes_network", "network", "floating-network-id",
               None, False),
@@ -25,9 +25,15 @@ NRPE_CHECKS = [
     NrpeCheck("openstack_security_groups", "security-group",
               "nrpe-security-group-ids", None, False),
 ]
+
+NRPE_LOADBALANCER_CHECK = NrpeCheck("openstack_loadbalancers", "loadbalancer",
+                                    None, None, False)
+
 NRPE_OPENSTACK_INTERFACE = "check_openstack_interface.py"
+NRPE_OPENSTACK_LOADBALANCER = "check_openstack_loadbalancer.py"
 NRPE_CONFIG_FLAGS_CHANGED = [
-    *["config.changed.{}".format(check.config) for check in NRPE_CHECKS],
-    *["config.changed.{}".format(check.config_skip) for check in NRPE_CHECKS
-      if check.config_skip]
+    *["config.changed.{}".format(check.config) for check in NRPE_BASE_OS_CHECKS],
+    *["config.changed.{}".format(check.config_skip) for check in NRPE_BASE_OS_CHECKS
+      if check.config_skip],
+    "loadbalancers.changed",
 ]
