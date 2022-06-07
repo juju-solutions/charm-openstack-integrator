@@ -34,3 +34,26 @@ The workflow for contributing code is as follows:
 
 Documentation for this charm is currently maintained as part of the Charmed Kubernetes docs.
 See [this page](https://github.com/charmed-kubernetes/kubernetes-docs/blob/master/pages/k8s/charm-openstack-integrator.md)
+
+
+## Testing
+
+All tests are run by [tox][].
+
+### Lint and Unittest
+
+These tests cloud be run by `tox -e lint` and `tox -e unit`, and they do not require
+any specific requirements.
+
+### Integration tests
+
+The integration tests deploy charmed-kubernetes and charm-openstack integration.
+Tests required to be run on top of OpenStack cloud with credentials for
+openstack-integrator, since it is deployed with `--trust`.
+
+```bash
+source <path-to-openrc>
+tox -e integration
+```
+
+[tox]: https://tox.wiki/en/latest/
