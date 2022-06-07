@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.6, 3.7, 3.8, 3.9]
+        python: [3.6, 3.7, 3.8, 3.9, '3.10']
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -22,23 +22,5 @@ jobs:
       - name: Run test
         run: tox -e unit
 
-  integration-tests:
-    name: Integration test with Microstack
-    runs-on: self-hosted
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-      - name: Setup operator environment
-        uses: charmed-kubernetes/actions-operator@main
-        with:
-          provider: microstack
-      - name: Create custom flavor to save resources
-        run: openstack flavor show m2.medium || openstack flavor create --vcpus 4 --ram 4096 --disk 20 m2.medium
-      - name: source Microstack credentials
-        run: source /var/snap/microstack/common/etc/microstack.rc
-      - name: Run test
-        run: tox -e integration
+# NOTE (rgildein): Functional tests have been replaced from the GitHub workflow until
+# a replacement for Microstak as a cloud is found.
