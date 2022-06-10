@@ -32,7 +32,7 @@ class FakeOpenStackInterface:
         return self._type
 
 
-@pytest.mark.parametrize("args,exp_output", [
+@pytest.mark.parametrize("args, exp_output", [
     (["--all"], (set(), set(), dict(), True)),
     (["--id", "1", "--id", "2"], ({"1", "2"}, set(), dict(), False)),
     (["-i", "1", "-i", "2"], ({"1", "2"}, set(), dict(), False)),
@@ -44,8 +44,7 @@ class FakeOpenStackInterface:
 ])
 def test_parse_arguments(args, exp_output, monkeypatch, credentials_cnf):
     """Test configuration of argparse.parser"""
-    monkeypatch.setattr(sys, "argv",
-                        ["", "network", "-c", credentials_cnf, *args])
+    monkeypatch.setattr(sys, "argv", ["", "server", "-c", credentials_cnf, *args])
     output = parse_arguments()
 
     assert exp_output == output[2:]
@@ -69,7 +68,7 @@ def test_parse_arguments_error(interface, args, monkeypatch, credentials_cnf):
         parse_arguments()
 
 
-@pytest.mark.parametrize("networks, check_kwargs, exp_ids", [
+@pytest.mark.parametrize("servers, check_kwargs, exp_ids", [
     ([{"id_": "1", "status": "ACTIVE"}], {"ids": {}, "check_all": True}, ["1"]),
     ([{"id_": "1", "status": "ACTIVE"}, {"id_": "2", "status": "ACTIVE"}],
      {"ids": {"1"}, "check_all": False}, ["1"]),
@@ -78,17 +77,17 @@ def test_parse_arguments_error(interface, args, monkeypatch, credentials_cnf):
     ([{"id_": "1", "status": "ACTIVE"}, {"id_": "2", "status": "ACTIVE"}],
      {"ids": {}, "skip": {"2"}, "check_all": True}, ["1"]),
 ])
-def test_check_passed(networks, check_kwargs, exp_ids, credentials):
+def test_check_passed(servers, check_kwargs, exp_ids, credentials):
     """Test NRPE check for OpenStack networks that passed."""
-    networks = [FakeOpenStackInterface("network", **network) for network in networks]
+    servers = [FakeOpenStackInterface("server", **server) for server in servers]
     with mock.patch("check_openstack_interface.openstack") as openstack:
         openstack.connect.return_value = mock_conn = MagicMock()
-        mock_conn.network.networks.return_value = networks
+        mock_conn.compute.servers.return_value = servers
         with mock.patch("check_openstack_interface.print") as mock_print:
-            check(credentials, "network", **check_kwargs)
-            messages = os.linesep.join("network '{}' is in ACTIVE status"
+            check(credentials, "server", **check_kwargs)
+            messages = os.linesep.join("server '{}' is in ACTIVE status"
                                        "".format(_id) for _id in exp_ids)
-            output = "networks {0}/{0} passed{1}{2}" \
+            output = "servers {0}/{0} passed{1}{2}" \
                      "".format(len(exp_ids), os.linesep, messages)
             mock_print.assert_called_once_with("OK: ", output)
 

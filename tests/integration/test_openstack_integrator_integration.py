@@ -78,9 +78,6 @@ async def test_check_nrpe_checks(ops_test):
         "check-openstack-floating-ips":
             "/usr/lib/nagios/plugins/check_openstack_interface.py floating-ip "
             "-c /etc/nagios/openstack.cnf --all",
-        "check-openstack-networks":
-            "/usr/lib/nagios/plugins/check_openstack_interface.py network -c "
-            "/etc/nagios/openstack.cnf --all",
         "check-openstack-ports":
             "/usr/lib/nagios/plugins/check_openstack_interface.py port -c "
             "/etc/nagios/openstack.cnf --all",

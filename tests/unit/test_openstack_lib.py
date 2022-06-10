@@ -612,17 +612,17 @@ def test_normalize_creds(_determine_version, log_err):
 
 
 @pytest.mark.parametrize("config, check, exp_cmd", [
-    ({"nrpe-network-ids": "all"},
-     nrpe_helpers.NRPE_CHECKS[2],
-     "/tmp/check_openstack_interface.py network -c "
+    ({"nrpe-server-ids": "all"},
+     nrpe_helpers.NRPE_CHECKS[6],
+     "/tmp/check_openstack_interface.py server -c "
      "/etc/nagios/openstack.cnf --all"),
-    ({"nrpe-network-ids": "all", "nrpe-skip-network-ids": "1,2"},
-     nrpe_helpers.NRPE_CHECKS[2],
-     "/tmp/check_openstack_interface.py network -c "
+    ({"nrpe-server-ids": "all", "nrpe-skip-server-ids": "1,2"},
+     nrpe_helpers.NRPE_CHECKS[6],
+     "/tmp/check_openstack_interface.py server -c "
      "/etc/nagios/openstack.cnf --all --skip-id 1 --skip-id 2"),
-    ({"nrpe-network-ids": "1,2,3"},
-     nrpe_helpers.NRPE_CHECKS[2],
-     "/tmp/check_openstack_interface.py network -c "
+    ({"nrpe-server-ids": "1,2,3"},
+     nrpe_helpers.NRPE_CHECKS[6],
+     "/tmp/check_openstack_interface.py server -c "
      "/etc/nagios/openstack.cnf --id 1 --id 2 --id 3"),
 
 ])
@@ -633,9 +633,11 @@ def test_create_nrpe_check_cmd(config, check, exp_cmd):
 
 
 @pytest.mark.parametrize("config, exp_result", [
-    ({"nrpe-network-ids": "all", "nrpe-skip-network-ids": "1,2"}, True),
-    ({"nrpe-network-ids": "1,2,3", "nrpe-skip-network-ids": "1,2"}, False),
-    ({"nrpe-network-ids": "all", "nrpe-skip-network-ids": "all"}, False),
+    ({"nrpe-server-ids": "all", "nrpe-skip-server-ids": "1,2"}, True),
+    ({"nrpe-server-ids": "1,2,3", "nrpe-skip-server-ids": "1,2"}, False),
+    ({"nrpe-server-ids": "all", "nrpe-skip-server-ids": "all"}, False),
+    ({"nrpe-network-ids": "1,2,3"}, True),
+    ({"nrpe-network-ids": "all"}, False),
     ({"nrpe-subnet-ids": "1,2,3"}, True),
     ({"nrpe-subnet-ids": "all"}, False),
 
@@ -680,8 +682,8 @@ def test_remove_nrpe_check():
 def test_update_nrpe_checks_os_interfaces():
     nrpe_setup = MagicMock()
     openstack.config = MagicMock()
-    openstack.config.get.side_effect = {"subnet-id": "1", "nrpe-network-ids": "all",
-                                        "nrpe-skip-network-ids": "1,2,3"}.get
+    openstack.config.get.side_effect = {"subnet-id": "1", "nrpe-server-ids": "all",
+                                        "nrpe-skip-server-ids": "1,2,3"}.get
     openstack.config.changed.return_value = True
 
     openstack.update_nrpe_checks_os_interfaces(nrpe_setup, False)
@@ -690,9 +692,9 @@ def test_update_nrpe_checks_os_interfaces():
              description="Check subnets: 1",
              check_cmd="/tmp/check_openstack_interface.py subnet -c /etc/nagios/"
                        "openstack.cnf --id 1"),
-        call(shortname="openstack_networks",
-             description="Check networks: all (skips: 1,2,3)",
-             check_cmd="/tmp/check_openstack_interface.py network -c /etc/nagios/"
+        call(shortname="openstack_servers",
+             description="Check servers: all (skips: 1,2,3)",
+             check_cmd="/tmp/check_openstack_interface.py server -c /etc/nagios/"
                        "openstack.cnf --all --skip-id 1 --skip-id 2 --skip-id 3"),
     ])
     assert nrpe_setup.remove_check.call_count == 6

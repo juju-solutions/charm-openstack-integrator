@@ -145,15 +145,7 @@ options:
   nrpe-network-ids:
     description: |
       List of OpenStack networks IDs to be checked by NRPE check. All values
-      must be separated by a comma or 'all' can be entered.
-    type: string
-    default: "all"
-  nrpe-skip-network-ids:
-    description: |
-      List of OpenStack networks IDs to be skipped by the NRPE check.
-      All values must be separated by a comma. The condition for using this
-      option is to set "nrpe-network-ids" to "all" or this value will raise
-      an error.
+      must be separated by a comma and the value `all` is not allowed.
     type: string
     default: ""
   nrpe-subnet-ids:

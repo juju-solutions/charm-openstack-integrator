@@ -36,7 +36,7 @@ INTERFACE = {
     "security-group": lambda conn: conn.network.security_groups(),
     "subnet": lambda conn: conn.network.subnets(),
 }
-INTERFACE_BY_EXISTENCE = ["security-group", "subnet"]
+INTERFACE_BY_EXISTENCE = ["network", "security-group", "subnet"]
 
 
 class Results:
@@ -50,8 +50,7 @@ class Results:
 
     @property
     def messages(self):
-        return [message for _, message
-                in sorted(self._messages, reverse=True)]
+        return [message for _, message in sorted(self._messages, reverse=True)]
 
     @property
     def count(self):
