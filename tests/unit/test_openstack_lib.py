@@ -614,15 +614,15 @@ def test_normalize_creds(_determine_version, log_err):
 @pytest.mark.parametrize("config, check, exp_cmd", [
     ({"nrpe-server-ids": "all"},
      nrpe_helpers.NRPE_CHECKS[6],
-     "/tmp/check_openstack_interface.py server -c "
+     "/tmp/check_openstack_resource.py server -c "
      "/etc/nagios/openstack.cnf --all"),
     ({"nrpe-server-ids": "all", "nrpe-skip-server-ids": "1,2"},
      nrpe_helpers.NRPE_CHECKS[6],
-     "/tmp/check_openstack_interface.py server -c "
+     "/tmp/check_openstack_resource.py server -c "
      "/etc/nagios/openstack.cnf --all --skip-id 1 --skip-id 2"),
     ({"nrpe-server-ids": "1,2,3"},
      nrpe_helpers.NRPE_CHECKS[6],
-     "/tmp/check_openstack_interface.py server -c "
+     "/tmp/check_openstack_resource.py server -c "
      "/etc/nagios/openstack.cnf --id 1 --id 2 --id 3"),
 
 ])
@@ -650,13 +650,13 @@ def test_validate_nrpe_configuration(config, exp_result):
 def test_add_nrpe_check():
     nrpe_setup = MagicMock()
     openstack.config = {"ids": "all", "skip-ids": "1,2,3"}
-    check = Mock(interface="interface", config="ids", config_skip="skip-ids")
+    check = Mock(resource="resource", config="ids", config_skip="skip-ids")
     check.name = "test"
 
     openstack.add_nrpe_check(nrpe_setup, "test-cmd", check)
     nrpe_setup.add_check.assert_called_once_with(
         shortname="test",
-        description="Check interfaces: all (skips: 1,2,3)",
+        description="Check resources: all (skips: 1,2,3)",
         check_cmd="test-cmd"
     )
 
@@ -679,42 +679,42 @@ def test_remove_nrpe_check():
         shortname="test", description="", check_cmd="test-cmd")
 
 
-def test_update_nrpe_checks_os_interfaces():
+def test_update_nrpe_checks_os_resources():
     nrpe_setup = MagicMock()
     openstack.config = MagicMock()
     openstack.config.get.side_effect = {"subnet-id": "1", "nrpe-server-ids": "all",
                                         "nrpe-skip-server-ids": "1,2,3"}.get
     openstack.config.changed.return_value = True
 
-    openstack.update_nrpe_checks_os_interfaces(nrpe_setup, False)
+    openstack.update_nrpe_checks_os_resources(nrpe_setup, False)
     nrpe_setup.add_check.assert_has_calls([
         call(shortname="kubernetes_subnet",
              description="Check subnets: 1",
-             check_cmd="/tmp/check_openstack_interface.py subnet -c /etc/nagios/"
+             check_cmd="/tmp/check_openstack_resource.py subnet -c /etc/nagios/"
                        "openstack.cnf --id 1"),
         call(shortname="openstack_servers",
              description="Check servers: all (skips: 1,2,3)",
-             check_cmd="/tmp/check_openstack_interface.py server -c /etc/nagios/"
+             check_cmd="/tmp/check_openstack_resource.py server -c /etc/nagios/"
                        "openstack.cnf --all --skip-id 1 --skip-id 2 --skip-id 3"),
     ])
     assert nrpe_setup.remove_check.call_count == 6
     nrpe_setup.write.assert_called_once_with()
 
 
-def test_remove_nrpe_checks_os_interface():
+def test_remove_nrpe_checks_os_resources():
     nrpe_setup = MagicMock()
     openstack.config = MagicMock()
     openstack.config.get.side_effect = {"subnet-id": "1", "nrpe-network-ids": "all"}.get
 
-    openstack.remove_nrpe_checks_os_interface(nrpe_setup)
+    openstack.remove_nrpe_checks_os_resources(nrpe_setup)
     nrpe_setup.remove_check.assert_has_calls([
         call(shortname="kubernetes_subnet",
              description="",
-             check_cmd="/tmp/check_openstack_interface.py subnet -c /etc/nagios/"
+             check_cmd="/tmp/check_openstack_resource.py subnet -c /etc/nagios/"
                        "openstack.cnf --id 1"),
         call(shortname="openstack_networks",
              description="",
-             check_cmd="/tmp/check_openstack_interface.py network -c /etc/nagios/"
+             check_cmd="/tmp/check_openstack_resource.py network -c /etc/nagios/"
                        "openstack.cnf --all"),
     ])
     nrpe_setup.write.assert_called_once_with()

@@ -191,9 +191,9 @@ def update_nrpe_config(initialization=False):
     nrpe_setup = nrpe.NRPE(hostname=hostname)
     layer.openstack.write_nagios_openstack_cnf()
     layer.nagios.install_nagios_plugin_from_file(
-        "files/nagios/plugins/check_openstack_interface.py",
-        nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
-    layer.openstack.update_nrpe_checks_os_interfaces(nrpe_setup, initialization)
+        "files/nagios/plugins/check_openstack_resource.py",
+        nrpe_helpers.NRPE_OPENSTACK_RESOURCE)
+    layer.openstack.update_nrpe_checks_os_resources(nrpe_setup, initialization)
     hookenv.log("NRPE checks were updated.", level=hookenv.DEBUG)
 
 
@@ -203,7 +203,7 @@ def remove_nrpe_config():
     """Remove all NRPE checks and related scripts."""
     hostname = nrpe.get_nagios_hostname()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
-    layer.openstack.remove_nrpe_checks_os_interface(nrpe_setup)
+    layer.openstack.remove_nrpe_checks_os_resources(nrpe_setup)
     layer.openstack.remove_nagios_openstack_cnf()
     clear_flag("nrpe-external-master.initial-config")
     hookenv.log("NRPE checks was removed.", level=hookenv.DEBUG)

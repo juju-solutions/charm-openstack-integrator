@@ -28,7 +28,7 @@ NAGIOS_STATUS = {
     NAGIOS_STATUS_CRITICAL: "CRITICAL",
     NAGIOS_STATUS_UNKNOWN: "UNKNOWN",
 }
-INTERFACE = {
+RESOURCES = {
     "network": lambda conn: conn.network.networks(),
     "floating-ip": lambda conn: conn.network.ips(),
     "server": lambda conn: conn.compute.servers(),
@@ -36,7 +36,7 @@ INTERFACE = {
     "security-group": lambda conn: conn.network.security_groups(),
     "subnet": lambda conn: conn.network.subnets(),
 }
-INTERFACE_BY_EXISTENCE = ["network", "security-group", "subnet"]
+RESOURCE_BY_EXISTENCE = ["network", "security-group", "subnet"]
 
 
 class Results:
@@ -65,7 +65,7 @@ class Results:
             self.critical.append(id_)
             exit_code = NAGIOS_STATUS_CRITICAL
             message = "{} '{}' is in {} status".format(type_, id_, status)
-        elif not status and exists and type_ in INTERFACE_BY_EXISTENCE:
+        elif not status and exists and type_ in RESOURCE_BY_EXISTENCE:
             self.ok.append(id_)
             exit_code = NAGIOS_STATUS_OK
             message = "{} '{}' exists".format(type_, id_)
@@ -82,23 +82,23 @@ class Results:
         self._messages.append((exit_code, message))
 
 
-def _interface_filter(interface, skip, select):
-    """Apply `--skip` and `--select` parameter to interface.
+def _resource_filter(resource, skip, select):
+    """Apply `--skip` and `--select` parameter to resource.
 
-    :param interface: OpenStack interface, e.g. network, port, ...
+    :param resource: OpenStack resource, e.g. network, port, ...
     :type: Any
-    :param skip: OpenStack interface IDs that will be skipped [None]
+    :param skip: OpenStack resource IDs that will be skipped [None]
     :type skip: Set[str]
-    :param select: values for OpenStack interfaces filtering [None]
+    :param select: values for OpenStack resources filtering [None]
     :type select: Dict[str, str]
-    :returns: a Boolean value to identify whether this interface is used
+    :returns: a Boolean value to identify whether this resource is used
     :rtype: bool
     """
-    if interface.id in (skip or {}):
+    if resource.id in (skip or {}):
         return False
 
     for key, value in (select or {}).items():
-        if getattr(interface, key, None) != value:
+        if getattr(resource, key, None) != value:
             return False
 
     return True
@@ -107,14 +107,14 @@ def _interface_filter(interface, skip, select):
 def parse_arguments():
     """Parse the check arguments and connect to OpenStack.
 
-    :returns: credentials, interface name, set IDs,
+    :returns: credentials, resource name, set IDs,
               set IDs to skip, values to filter when using `--all`
               and check all flag
     :rtype: Tuple[configparser.ConfigParser, str, set, set, dict, bool]
     """
     credentials = ConfigParser()
-    parser = argparse.ArgumentParser("check_openstack_interface")
-    parser.add_argument("interface", type=str, help="interface type")
+    parser = argparse.ArgumentParser("check_openstack_resource")
+    parser.add_argument("resource", type=str, help="resource type")
     parser.add_argument("-c", "--credential", required=True,
                         type=argparse.FileType("r"),
                         help="path to OpenStack credential cnf file")
@@ -128,12 +128,12 @@ def parse_arguments():
                              "(e.g. --select subnet=<id>)")
     args = parser.parse_args()
 
-    if args.interface not in INTERFACE:
-        parser.error("'{}' interface is not supported".format(args.interface))
+    if args.resource not in RESOURCES:
+        parser.error("'{}' resource is not supported".format(args.resource))
 
-    if args.all and args.interface in INTERFACE_BY_EXISTENCE:
+    if args.all and args.resource in RESOURCE_BY_EXISTENCE:
         parser.error("flag '--all' is not supported with "
-                     "interface {}".format(args.interface))
+                     "resource {}".format(args.resource))
     if args.all and args.id:
         parser.error("--all/--id' are mutually exclusive")
     elif not args.all and not args.id:
@@ -145,11 +145,11 @@ def parse_arguments():
 
     credentials.read_file(args.credential)
 
-    return (credentials, args.interface, set(args.id), set(args.skip_id),
+    return (credentials, args.resource, set(args.id), set(args.skip_id),
             dict(arg.split("=", 1) for arg in args.select), args.all)
 
 
-def _create_title(interface_type, results):
+def _create_title(resource_type, results):
     """Get output title."""
     titles = []
 
@@ -165,13 +165,13 @@ def _create_title(interface_type, results):
     if results.ok:
         titles.append(OK_MESSAGE.format(len(results.ok), results.count))
 
-    return "{}s {}".format(interface_type, ", ".join(titles))
+    return "{}s {}".format(resource_type, ", ".join(titles))
 
 
-def nagios_output(interface_type, results):
+def nagios_output(resource_type, results):
     """Convert checks results to nagios format."""
     messages = os.linesep.join(results.messages)
-    title = _create_title(interface_type, results)
+    title = _create_title(resource_type, results)
     output = "{}{}{}".format(title, os.linesep, messages)
 
     # all checks passed
@@ -192,48 +192,48 @@ def nagios_output(interface_type, results):
                            "".format(results.exit_code, output))
 
 
-def check(credentials, interface_type, ids, skip=None, select=None, check_all=False):
-    """Check OpenStack interface.
+def check(credentials, resource_type, ids, skip=None, select=None, check_all=False):
+    """Check OpenStack resource.
 
     :param credentials: OpenStack credentials
     :type credentials: configparser.ConfigParser
-    :param interface_type: OpenStack interface type
-    :type interface_type: str
-    :param ids: OpenStack interface IDs that will be checked
+    :param resource_type: OpenStack resource type
+    :type resource_type: str
+    :param ids: OpenStack resource IDs that will be checked
     :type ids: Set[str]
-    :param skip: OpenStack interface IDs that will be skipped
+    :param skip: OpenStack resource IDs that will be skipped
     :type skip: Set[str]
-    :param select: values for OpenStack interfaces filtering
+    :param select: values for OpenStack resources filtering
     :type select: Dict[str, str]
-    :param check_all: flag to checking all OpenStack interfaces
+    :param check_all: flag to checking all OpenStack resources
     :type check_all: bool
-    :raise nagios_plugin3.UnknownError: if interface not valid status
-    :raise nagios_plugin3.CriticalError: if interface not found
-    :raise nagios_plugin3.CriticalError: if interface status is DOWN
+    :raise nagios_plugin3.UnknownError: if resource not valid status
+    :raise nagios_plugin3.CriticalError: if resource not found
+    :raise nagios_plugin3.CriticalError: if resource status is DOWN
     """
     results = Results()
     connection = openstack.connect(**credentials["openstack"])
-    interfaces = INTERFACE[interface_type](connection)
+    resources = RESOURCES[resource_type](connection)
     checked_ids = []
 
-    for interface in interfaces:
-        if interface.id not in ids and not check_all:
+    for resource in resources:
+        if resource.id not in ids and not check_all:
             continue
-        elif check_all and not _interface_filter(interface, skip, select):
+        elif check_all and not _resource_filter(resource, skip, select):
             continue
 
-        checked_ids.append(interface.id)
-        if interface_type not in INTERFACE_BY_EXISTENCE:
-            interface_status = getattr(interface, "status", "UNKNOWN")
-            results.add_result(interface_type, interface.id, interface_status)
+        checked_ids.append(resource.id)
+        if resource_type not in RESOURCE_BY_EXISTENCE:
+            resource_status = getattr(resource, "status", "UNKNOWN")
+            results.add_result(resource_type, resource.id, resource_status)
         else:
-            results.add_result(interface_type, interface.id)
+            results.add_result(resource_type, resource.id)
 
     for id_ in ids:
         if id_ not in checked_ids:
-            results.add_result(interface_type, id_, exists=False)
+            results.add_result(resource_type, id_, exists=False)
 
-    nagios_output(interface_type, results)
+    nagios_output(resource_type, results)
 
 
 def main():

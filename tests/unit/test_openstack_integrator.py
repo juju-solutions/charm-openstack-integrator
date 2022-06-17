@@ -39,7 +39,7 @@ def test_update_nrpe_config(mock_openstack):
     openstack.update_nrpe_config(True)
     assert not is_flag_set("nrpe-external-master.bad-config")
     mock_openstack.write_nagios_openstack_cnf.assert_called_once_with()
-    mock_openstack.update_nrpe_checks_os_interfaces.assert_called_once_with(
+    mock_openstack.update_nrpe_checks_os_resources.assert_called_once_with(
         nrpe_setup, True)
 
 
@@ -50,6 +50,6 @@ def test_remove_nrpe_config(mock_openstack):
 
     openstack.remove_nrpe_config()
 
-    mock_openstack.remove_nrpe_checks_os_interface.assert_called_once_with(nrpe_setup)
+    mock_openstack.remove_nrpe_checks_os_resources.assert_called_once_with(nrpe_setup)
     mock_openstack.remove_nagios_openstack_cnf.assert_called_once_with()
     assert not is_flag_set("nrpe-external-master.initial-config")

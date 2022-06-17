@@ -7,10 +7,10 @@ import pytest
 
 from nagios_plugin3 import CriticalError, WarnError
 
-from check_openstack_interface import check, parse_arguments
+from check_openstack_resource import check, parse_arguments
 
 
-class FakeOpenStackInterface:
+class FakeOpenStackResource:
     def __init__(self, type_, id_, status=None, **kwargs):
         self._type = type_
         self._id = id_
@@ -50,19 +50,19 @@ def test_parse_arguments(args, exp_output, monkeypatch, credentials_cnf):
     assert exp_output == output[2:]
 
 
-@pytest.mark.parametrize("interface,args", [
+@pytest.mark.parametrize("resource,args", [
     ("network", ["-i", "1", "--all"]),
     ("network", ["-i", "1", "--skip-id", "1"]),
     ("network", ["-i", "1", "--select", "a=b"]),
-    ("wrong-interface", ["-i", "1"]),
+    ("wrong-resource", ["-i", "1"]),
     ("security-group", ["--all"]),
     ("subnet", ["--all"]),
     ("network", ["--skip-id", "1"])
 ])
-def test_parse_arguments_error(interface, args, monkeypatch, credentials_cnf):
+def test_parse_arguments_error(resource, args, monkeypatch, credentials_cnf):
     """Test configuration of argparse.parser raise error"""
     monkeypatch.setattr(sys, "argv",
-                        ["", interface, "-c", credentials_cnf, *args])
+                        ["", resource, "-c", credentials_cnf, *args])
 
     with pytest.raises(SystemExit):
         parse_arguments()
@@ -79,11 +79,11 @@ def test_parse_arguments_error(interface, args, monkeypatch, credentials_cnf):
 ])
 def test_check_passed(servers, check_kwargs, exp_ids, credentials):
     """Test NRPE check for OpenStack networks that passed."""
-    servers = [FakeOpenStackInterface("server", **server) for server in servers]
-    with mock.patch("check_openstack_interface.openstack") as openstack:
+    servers = [FakeOpenStackResource("server", **server) for server in servers]
+    with mock.patch("check_openstack_resource.openstack") as openstack:
         openstack.connect.return_value = mock_conn = MagicMock()
         mock_conn.compute.servers.return_value = servers
-        with mock.patch("check_openstack_interface.print") as mock_print:
+        with mock.patch("check_openstack_resource.print") as mock_print:
             check(credentials, "server", **check_kwargs)
             messages = os.linesep.join("server '{}' is in ACTIVE status"
                                        "".format(_id) for _id in exp_ids)
@@ -98,11 +98,11 @@ def test_check_passed(servers, check_kwargs, exp_ids, credentials):
 ])
 def test_check_passed_by_existence(subnets, ids, credentials):
     """Test NRPE check for OpenStack networks that passed."""
-    subnets = [FakeOpenStackInterface("subnet", **subnet) for subnet in subnets]
-    with mock.patch("check_openstack_interface.openstack") as openstack:
+    subnets = [FakeOpenStackResource("subnet", **subnet) for subnet in subnets]
+    with mock.patch("check_openstack_resource.openstack") as openstack:
         openstack.connect.return_value = mock_conn = MagicMock()
         mock_conn.network.subnets.return_value = subnets
-        with mock.patch("check_openstack_interface.print") as mock_print:
+        with mock.patch("check_openstack_resource.print") as mock_print:
             check(credentials, "subnet", ids=ids)
             messages = os.linesep.join("subnet '{}' exists".format(_id) for _id in ids)
             output = "subnets {0}/{0} passed{1}{2}" \
@@ -123,8 +123,8 @@ def test_check_passed_by_existence(subnets, ids, credentials):
 ])
 def test_check_unknown_warning(ports, exp_out, credentials):
     """Test NRPE check for OpenStack servers with warning output."""
-    ports = [FakeOpenStackInterface("port", **port) for port in ports]
-    with mock.patch("check_openstack_interface.openstack") as openstack:
+    ports = [FakeOpenStackResource("port", **port) for port in ports]
+    with mock.patch("check_openstack_resource.openstack") as openstack:
         openstack.connect.return_value = mock_conn = MagicMock()
         mock_conn.network.ports.return_value = ports
         with pytest.raises(WarnError) as error:
@@ -145,8 +145,8 @@ def test_check_unknown_warning(ports, exp_out, credentials):
 ])
 def test_check_critical_error(servers, ids, exp_out, credentials):
     """Test NRPE check for OpenStack servers with critical output."""
-    servers = [FakeOpenStackInterface("server", **server) for server in servers]
-    with mock.patch("check_openstack_interface.openstack") as openstack:
+    servers = [FakeOpenStackResource("server", **server) for server in servers]
+    with mock.patch("check_openstack_resource.openstack") as openstack:
         openstack.connect.return_value = mock_conn = MagicMock()
         mock_conn.compute.servers.return_value = servers
         with pytest.raises(CriticalError) as error:

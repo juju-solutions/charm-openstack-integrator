@@ -1023,7 +1023,7 @@ def remove_nagios_openstack_cnf():
 def create_nrpe_check_cmd(check):
     """Crete cmd command for checking OpenStack IDs.
 
-    :param check: Definition NRPE check for OpenStack interface
+    :param check: Definition NRPE check for OpenStack resource
     :type check: nrpe_helpers.NrpeCheck
     :returns: NRPE check CMD
     :rtype: string
@@ -1035,9 +1035,9 @@ def create_nrpe_check_cmd(check):
     ids = [i for i in value_ids.split(",") if i]  # remove empty string
     skip_ids = [i for i in value_skip_ids.split(",") if i]
     script = os.path.join(
-        NAGIOS_PLUGINS_DIR, nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
+        NAGIOS_PLUGINS_DIR, nrpe_helpers.NRPE_OPENSTACK_RESOURCE)
     cmd = "{} {} -c {}".format(
-        script, check.interface, OPENSTACK_NAGIOS_CREDENTIAL_FILE)
+        script, check.resource, OPENSTACK_NAGIOS_CREDENTIAL_FILE)
 
     if "all" in ids:
         cmd += " --all"
@@ -1081,7 +1081,7 @@ def add_nrpe_check(nrpe_setup, cmd, check):
     :param check: NRPE check definition
     :type check: NrpeCheck
     """
-    description = "Check {}s: {}".format(check.interface, config.get(check.config))
+    description = "Check {}s: {}".format(check.resource, config.get(check.config))
     if check.config_skip and config.get(check.config_skip):
         description += " (skips: {})".format(config.get(check.config_skip))
 
@@ -1108,8 +1108,8 @@ def remove_nrpe_check(nrpe_setup, cmd, check):
                     level=hookenv.DEBUG)
 
 
-def update_nrpe_checks_os_interfaces(nrpe_setup, initialization):
-    """Update NRPE checks for OpenStack interfaces.
+def update_nrpe_checks_os_resources(nrpe_setup, initialization):
+    """Update NRPE checks for OpenStack resources.
 
     :param nrpe_setup: NPRE object management checks
     :type nrpe_setup: charmhelpers.contrib.charmsupport.nrpe.NRPE
@@ -1129,8 +1129,8 @@ def update_nrpe_checks_os_interfaces(nrpe_setup, initialization):
     nrpe_setup.write()
 
 
-def remove_nrpe_checks_os_interface(nrpe_setup):
-    """Remove NRPE checks for OpenStack interfaces.
+def remove_nrpe_checks_os_resources(nrpe_setup):
+    """Remove NRPE checks for OpenStack resources.
 
     :param nrpe_setup: NPRE object management checks
     :type nrpe_setup: charmhelpers.contrib.charmsupport.nrpe.NRPE
@@ -1141,4 +1141,4 @@ def remove_nrpe_checks_os_interface(nrpe_setup):
             remove_nrpe_check(nrpe_setup, cmd, check)
 
     nrpe_setup.write()
-    remove_nagios_plugin(nrpe_helpers.NRPE_OPENSTACK_INTERFACE)
+    remove_nagios_plugin(nrpe_helpers.NRPE_OPENSTACK_RESOURCE)
