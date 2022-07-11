@@ -9,6 +9,7 @@ description: |
 docs: https://discourse.charmhub.io/t/openstack-integrator-docs-index/6093
 maintainers: ['Cory Johns <cory.johns@canonical.com>']
 series:
+  - jammy
   - focal
   - bionic
   - xenial
