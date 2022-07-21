@@ -12,7 +12,6 @@ series:
   - focal
   - jammy
   - bionic
-  - xenial
 tags: ['openstack', 'native', 'integration']
 provides:
   clients:
