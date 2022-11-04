@@ -53,6 +53,12 @@ options:
       as a config option in a Juju CLI invocation.
     type: string
     default: ""
+  lb-enabled:
+    description: |
+      Whether or not to enable the LoadBalancer type of Services integration.
+      Enabled by default.
+    default: null
+    type: boolean
   lb-subnet:
     description: |
       Override the subnet (name or ID) in which this charm will create load
