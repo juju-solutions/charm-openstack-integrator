@@ -9,9 +9,8 @@ description: |
 docs: https://discourse.charmhub.io/t/openstack-integrator-docs-index/6093
 maintainers: ['Cory Johns <cory.johns@canonical.com>']
 series:
-  - focal
   - jammy
-  - bionic
+  - focal
 tags: ['openstack', 'native', 'integration']
 provides:
   clients:
