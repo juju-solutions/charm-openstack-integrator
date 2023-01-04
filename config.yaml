@@ -57,8 +57,8 @@ options:
     description: |
       Whether or not to enable the LoadBalancer type of Services integration.
       Enabled by default.
-    default: null
     type: boolean
+    default: true
   lb-subnet:
     description: |
       Override the subnet (name or ID) in which this charm will create load
