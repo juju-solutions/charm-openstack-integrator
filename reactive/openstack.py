@@ -105,6 +105,7 @@ def handle_requests():
                                  config['lb-method'],
                                  manage_security_groups,
                                  has_octavia,
+                                 lb_enabled=config['lb-enabled'],
                                  internal_lb=config['internal-lb'])
 
         def _or_none(val):
