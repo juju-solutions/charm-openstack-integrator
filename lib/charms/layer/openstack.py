@@ -320,7 +320,7 @@ def _determine_version(attrs, endpoint):
     if attrs.get('version'):
         return str(attrs['version'])
 
-    url_ver = re.search(r'/v?(\d+(.\d+)?)$', endpoint)
+    url_ver = re.search(r'/v?(\d+(.\d+)?)/?$', endpoint)
     if url_ver:
         return url_ver.group(1)
 
