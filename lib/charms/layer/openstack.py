@@ -1,8 +1,10 @@
 import binascii
+import contextlib
 import json
 import re
 import os
 import subprocess
+import tempfile
 import time
 from base64 import b64decode, b64encode
 from ipaddress import ip_address, ip_network
@@ -10,6 +12,7 @@ from pathlib import Path
 from traceback import format_exc
 from urllib.request import urlopen
 from urllib.parse import urlparse
+from urllib.error import HTTPError
 
 import yaml
 
@@ -245,7 +248,7 @@ def _normalize_creds(creds_data):
         project_domain_name=attrs.get('project-domain-name'),
         project_name=attrs.get('project-name', attrs.get('tenant-name')),
         endpoint_tls_ca=ca_cert,
-        version=_determine_version(attrs, endpoint),
+        version=_determine_version(attrs, endpoint, ca_cert),
     )
 
 
@@ -316,7 +319,19 @@ def _neutron(*args):
     return yaml.safe_load(output)
 
 
-def _determine_version(attrs, endpoint):
+@contextlib.contextmanager
+def _ca_cert_temp(ca_cert):
+    if ca_cert:
+        ca_cert = b64decode(ca_cert.encode('utf8'))
+        with tempfile.NamedTemporaryFile() as ca_file:
+            ca_file.write(ca_cert + b'\n')
+            ca_file.flush()
+            yield ca_file.name
+    else:
+        yield None
+
+
+def _determine_version(attrs, endpoint, endpoint_tls_ca):
     if attrs.get('version'):
         return str(attrs['version'])
 
@@ -324,16 +339,20 @@ def _determine_version(attrs, endpoint):
     if url_ver:
         return url_ver.group(1)
 
-    try:
-        with urlopen(endpoint) as fp:
-            info = json.loads(fp.read(600).decode('utf8'))
-            return str(info['version']['id']).split('.')[0].lstrip('v')
-    except (json.JSONDecodeError,
-            UnicodeDecodeError,
-            KeyError,
-            ValueError) as e:
-        log_err('Failed to determine API version: {}', e)
-        return None
+    version = None
+
+    with _ca_cert_temp(endpoint_tls_ca) as ca_file:
+        try:
+            with urlopen(endpoint, cafile=ca_file) as fp:
+                info = json.loads(fp.read(600).decode('utf8'))
+                version = str(info['version']['id']).split('.')[0].lstrip('v')
+        except (HTTPError,
+                json.JSONDecodeError,
+                UnicodeDecodeError,
+                KeyError,
+                ValueError) as e:
+            log_err('Failed to determine API version: {}', e)
+    return version
 
 
 def _is_base64(s):

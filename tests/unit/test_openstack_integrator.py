@@ -8,6 +8,7 @@ from unittest import mock
 # patched
 import subprocess
 from urllib.request import urlopen
+from urllib.error import HTTPError
 from time import sleep
 import charms.layer
 
@@ -62,42 +63,50 @@ def impl():
         yield _get_impl()
 
 
-def test_determine_version(log_err):
-    assert openstack._determine_version({'version': 3}, None) == '3'
-    assert not urlopen.called
-    assert not log_err.called
+def test_determine_version_by_attr(log_err):
+    # Determine by existing version attr
+    assert openstack._determine_version({'version': 3}, None, None) == '3'
+    urlopen.assert_not_called()
+    log_err.assert_not_called()
 
-    assert openstack._determine_version({}, 'https://endpoint/2') == '2'
-    assert openstack._determine_version({}, 'https://endpoint/v2') == '2'
-    assert openstack._determine_version({}, 'https://endpoint/v2.0') == '2.0'
-    assert not urlopen.called
-    assert not log_err.called
 
-    read = urlopen().__enter__().read
+def test_determine_version_by_url(log_err):
+    # Determine through url inspection
+    assert openstack._determine_version({}, 'https://endpoint/2', None) == '2'
+    assert openstack._determine_version({}, 'https://endpoint/v2', None) == '2'
+    assert openstack._determine_version({}, 'https://endpoint/v2.0', None) == '2.0'
+    urlopen.assert_not_called()
+    log_err.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "http_failure",
+    [ValueError("foo"), b".", b"\xff", b"{}",
+     HTTPError("url", 400, "Not Found", {}, None)],
+    ids=["value error", "invalid json", "invalid bytes", "empty json", "http error"]
+)
+def test_determine_version_fetch_with_failure(log_err, http_failure):
+    # Determine through http fetch
+    log_err.reset_mock()
+    urlopen.side_effect = None
+    read = urlopen.return_value.__enter__().read
     read.return_value = (
         b'{"version": {"id": "v3.12", "status": "stable", '
         b'"updated": "2019-01-22T00:00:00Z", "links": [{"rel": "self", '
         b'"href": "http://10.244.40.88:5000/v3/"}], "media-types": [{'
         b'"base": "application/json", '
         b'"type": "application/vnd.openstack.identity-v3+json"}]}}')
-    assert openstack._determine_version({}, 'https://endpoint/') == '3'
-    assert not log_err.called
 
-    urlopen.side_effect = ValueError('foo')
-    assert openstack._determine_version({}, 'https://endpoint/') is None
+    args = {}, 'https://endpoint/', None
+    assert openstack._determine_version(*args) == '3'
+    log_err.assert_not_called()
 
-    urlopen.side_effect = None
-    assert openstack._determine_version({}, 'https://endpoint/') == '3'
-
-    read.return_value = b'.'
-    assert openstack._determine_version({}, 'https://endpoint/') is None
-    assert log_err.called
-
-    read.return_value = b'\xff'
-    assert openstack._determine_version({}, 'https://endpoint/') is None
-
-    read.return_value = b'{}'
-    assert openstack._determine_version({}, 'https://endpoint/') is None
+    if isinstance(http_failure, Exception):
+        urlopen.side_effect = http_failure
+    else:
+        read.return_value = http_failure
+    assert openstack._determine_version(*args) is None
+    log_err.assert_called_once()
 
 
 def _b64(s):
@@ -607,7 +616,7 @@ def test_normalize_creds(_determine_version, log_err):
         endpoint_tls_ca=None,
         version='3',
     )
-    _determine_version.assert_called_with({}, '')
+    _determine_version.assert_called_with({}, '', None)
     attrs = {
         'auth-url': 'auth-url',
         'region': 'us-east-1',
