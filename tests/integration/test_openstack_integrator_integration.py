@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 async def test_build_and_deploy(ops_test):
     """Build and deploy openstack-integrator in bundle."""
     bundle = ops_test.Bundle("kubernetes-core", channel="edge")
-    bundle, = await ops_test.async_render_bundles(bundle)
+    (bundle,) = await ops_test.async_render_bundles(bundle)
     log.info("Deploy Kubernetes Core...")
 
     deploy = shlex.split(f"juju deploy -m {ops_test.model_full_name} {bundle}")
